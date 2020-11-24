@@ -5,10 +5,6 @@ import pygame
 from evo import utils
 from evo.dna import Size, Speed, Perception
 
-# TODO : Fleeing from carnivores
-# TODO : Poison fruits 
-# TODO : Memory and fruit identification
-# TODO : Type hints
 
 # Initialize
 pygame.init()
@@ -139,6 +135,10 @@ class Creature(LifeForm):
         self.target = None
         self.waypoints = collections.deque(maxlen=10)
 
+    @property
+    def perception_range(self):
+        return self.perception.value * 60
+
     def get_image(self):
         # Size
         for images_size, images in self.world.images_creatures:
@@ -162,11 +162,15 @@ class Creature(LifeForm):
             # Fruits are never a predator
             if isinstance(lf, Fruit):
                 yield lf, False
-            # Creatures can be prey or predator, depending on size diff
-            elif isinstance(lf, Creature) and not self.is_related(lf):
-                if self.size.value > lf.size.value * 1.1:
+            elif isinstance(lf, Creature):
+                # Ignore self or related
+                if lf is self or self.is_related(lf):
+                    continue
+                # Smaller creatures are a prey
+                if self.size.value > lf.size.value * 1.2:
                     yield lf, False
-                elif lf.size.value > self.size.value * 1.1:
+                # Bigger creatures are a predator
+                elif lf.size.value > self.size.value * 1.2:
                     yield lf, True
 
     def select_target(self):
@@ -180,21 +184,21 @@ class Creature(LifeForm):
             # If target a predator
             if is_predator:
                 distance = vector.magnitude()
-                if distance <= self.perception.value * 100:
+                if distance <= self.perception_range:
                     score = 1 / max(1, distance)
                     if score > predator_score:
                         predator, predator_score, predator_vector = lf, score, vector
             # If target is a prey, and no predator was spotted
             elif not predator:
                 distance = vector.magnitude()
-                if distance <= self.perception.value * 100:
+                if distance <= self.perception_range:
                     score = lf.nutrition / max(1, distance**2)
                     if score > prey_score:
                         prey, prey_score = lf, score
         # Did we spot a predator?
         if predator:
             try:
-                target_pos = self.pos-predator_vector.normalize()*self.perception.value*100
+                target_pos = self.pos-predator_vector.normalize()*self.perception_range
             except ValueError:
                 # Cannot determine feeing direction, can happen if vector is (0,0)
                 # Just pass pos=None to make it random....
@@ -230,7 +234,7 @@ class Creature(LifeForm):
             # If prey alive but is is a creature, check its distance
             elif isinstance(self.target, Creature):
                 # If creature-prey is too far, drop it
-                if self.vector_to(self.target).magnitude() > self.perception.value * 100:
+                if self.vector_to(self.target).magnitude() > self.perception_range:
                     self.set_target(None)
         # Look for a new target id:
         # - We just droppped our target
@@ -265,7 +269,7 @@ class Creature(LifeForm):
                         wp0 = wp1
                     pygame.draw.line(self.world.map, (160,192,160), wp0, self.pos, 2)
                 # Current perception and target
-                pygame.draw.circle(self.world.map, (0,0,255), self.pos, self.perception.value*100, 1)
+                pygame.draw.circle(self.world.map, (0,0,255), self.pos, self.perception_range, 1)
                 pygame.draw.line(self.world.map, (0,0,255), self.pos, self.target.pos, 1)
 
     def update(self):

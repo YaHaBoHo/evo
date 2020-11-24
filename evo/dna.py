@@ -8,8 +8,8 @@ class Gene():
     VMIN = 0.5
     VMAX = 10
     DEFAULT = 1
-    SIGMA = 0.03
     COST_RATIO = 0.5
+    MUTATION_RATIO = 0.02
 
     def __init__(self, value=None):
         if value is None:
@@ -21,11 +21,13 @@ class Gene():
         return self.value
 
     def mutate(self):
-        vrange = (self.VMAX - self.VMIN) * self.SIGMA
+        vrange = (self.VMAX - self.VMIN) * self.MUTATION_RATIO
         return self.__class__(utils.clamp(self.value + random.uniform(-vrange, vrange), self.VMIN, self.VMAX))
 
 
 class Size(Gene):
+
+    COST_RATIO = 0.4
 
     def _cost(self):
         return 4.189 * self.value**3
@@ -38,6 +40,9 @@ class Speed(Gene):
         # Speed portion of kinetic energy
 
 class Perception(Gene):
+
+    COST_RATIO = 0.1
+    MUTATION_RATIO = 0.03
 
     def _cost(self):
         return 6.284 * self.value**2

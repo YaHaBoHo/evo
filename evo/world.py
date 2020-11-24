@@ -6,8 +6,6 @@ from evo.node import Creature, Fruit
 from evo.dna import  Size, Speed, Perception
 from evo.chart import Chart
 
-# TODO : Type hints
-
 
 # Initialize
 pygame.init()

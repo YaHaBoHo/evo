@@ -1,8 +1,6 @@
 import pathlib
 import pygame
 
-# TODO : Type hints
-# TODO : https://www.pygame.org/wiki/Spritesheet
 
 pygame.init()
 
