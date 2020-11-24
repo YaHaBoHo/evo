@@ -95,7 +95,7 @@ class Cherry(Fruit):
         self.nutrition = 750
 
     def get_image(self):
-        return self.world.images['sprites']['fruit']['cherry']
+        return self.world.images_fruits['cherry']
 
 
 class Banana(Fruit):
@@ -105,12 +105,12 @@ class Banana(Fruit):
         self.nutrition = 2000
 
     def get_image(self):
-        return self.world.images['sprites']['fruit']['banana']
+        return self.world.images_fruits['banana']
 
 
 class Creature(LifeForm):
 
-    AGE_MALUS = 0.00075
+    AGE_COST = 0.00075
 
     def __init__(self, world, pos=None, parent=None):
         # Parent
@@ -140,14 +140,14 @@ class Creature(LifeForm):
         self.waypoints = collections.deque(maxlen=10)
 
     def get_image(self):
-        # Color
-        idx = 1 if self.carnivore else 0
         # Size
-        for s in self.world.creature_sizes:
-            if self.size.value * 10 >= s:
-                return self.world.images['sprites']['creature'][s][idx]
-        # Fallback on smallest sprite
-        return self.world.images['sprites']['creature'][self.world.creature_sizes[-1]][idx]
+        for images_size, images in self.world.images_creatures:
+            if self.size.value >= images_size:
+                return images[1 if self.carnivore else 0]
+        # Fallback on custom surface
+        fallback = pygame.Surface((10, 10))
+        fallback.fill((255,0,0) if self.carnivore else (0,255,0))
+        return fallback
 
     def reproduce(self):
         self.energy -= self.nutrition * 0.5
@@ -271,7 +271,7 @@ class Creature(LifeForm):
     def update(self):
         # Time passes...
         self.age += 1
-        self.energy -= self.age * self.AGE_MALUS + self.perception.cost
+        self.energy -= self.age * self.AGE_COST + self.perception.cost
         # Check if we ran out of energy
         if self.energy <= 0:
             self.die()

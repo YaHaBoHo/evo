@@ -28,8 +28,9 @@ class World():
         self.screen_size = utils.Int2D(1024, 768)  # TODO : Custom screen size
         self.screen = pygame.display.set_mode(self.screen_size.xy)
         # Images
-        self.images = utils.load_images()
-        self.creature_sizes = sorted(self.images['sprites']['creature'].keys(), reverse=True)
+        self.images_tiles = utils.load_map_tiles()
+        self.images_fruits = utils.load_fruit_sprites()
+        self.images_creatures = utils.load_creature_sprites((Size.VMIN, Size.VMAX))
         # Map background
         self.world_tiles = utils.Int2D(*map_size) + 2
         self.map_bg = self.load_background()
@@ -77,32 +78,32 @@ class World():
         if x == 0:
             if y == 0:
                 # Top-left corner
-                return random.choice(self.images['map']['corner'])
+                return random.choice(self.images_tiles['corner'])
             elif y == self.world_tiles.y - 1:
                 # Bottom-left corner
-                return pygame.transform.rotate(random.choice(self.images['map']['corner']), 90)
+                return pygame.transform.rotate(random.choice(self.images_tiles['corner']), 90)
             else:
                 # Left edge
-                return random.choice(self.images['map']['edge'])
+                return random.choice(self.images_tiles['edge'])
         elif x == self.world_tiles.x - 1:
             if y == 0:
                 # Top-right corner
-                return pygame.transform.rotate(random.choice(self.images['map']['corner']), -90)
+                return pygame.transform.rotate(random.choice(self.images_tiles['corner']), -90)
             elif y == self.world_tiles.y - 1:
                 # Bottom-right corner
-                return pygame.transform.rotate(random.choice(self.images['map']['corner']), 180)
+                return pygame.transform.rotate(random.choice(self.images_tiles['corner']), 180)
             else:
                 # Right edge
-                return pygame.transform.rotate(random.choice(self.images['map']['edge']), 180)
+                return pygame.transform.rotate(random.choice(self.images_tiles['edge']), 180)
         elif y == 0:
             # Top edge
-            return pygame.transform.rotate(random.choice(self.images['map']['edge']), -90)
+            return pygame.transform.rotate(random.choice(self.images_tiles['edge']), -90)
         elif y == self.world_tiles.y - 1:
             # Bottom edge
-            return pygame.transform.rotate(random.choice(self.images['map']['edge']), 90)
+            return pygame.transform.rotate(random.choice(self.images_tiles['edge']), 90)
         else:
             # Center / main tile      
-            return random.choice(self.images['map']['center'])
+            return random.choice(self.images_tiles['center'])
 
     def select_next(self, clear=False):
         # TODO : Review logic
