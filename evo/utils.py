@@ -98,6 +98,10 @@ def stat_quantiles(values, mid=0.5, low=0.1, high=0.9):
     return (0,)*3
 
 
+def ceildiv(a, b):
+    return -(-a // b)
+
+
 def clamp(v, vmin, vmax):
     return min(max(v, vmin), vmax)
 
@@ -145,7 +149,7 @@ def load_image_strips(file_pattern, alpha=True):
         reverse=True
     )
 
-def load_map_tiles():
+def load_map_images():
     return {
         'center': load_image_files("bg_center_*.bmp", alpha=False),
         'edge': load_image_files("bg_edge_*.bmp", alpha=False),
@@ -153,7 +157,7 @@ def load_map_tiles():
     }
 
 
-def load_creature_sprites(scale_to):
+def load_creature_images(scale_to):
     # Load
     images_creatures = load_image_strips("sp_creature_*.bmp")
     # Scale
@@ -163,7 +167,7 @@ def load_creature_sprites(scale_to):
     for img_size, img_list in images_creatures]
 
 
-def load_fruit_sprites():
+def load_fruit_images():
     sprites = dict()
     for item in IMAGEDIR.glob("sp_fruit_*.bmp"):
         if item.is_file():
