@@ -13,18 +13,18 @@ class Node(pygame.sprite.Sprite):
 
     id_counter = itertools.count()
 
-    def __init__(self, world, pos:pygame.math.Vector2=None):
+    def __init__(self, engine, pos:pygame.math.Vector2=None):
         # Parent
         super().__init__()
-        # World
-        self.world = world 
+        # Engine
+        self.engine = engine
         # Image
         self.image = None
         self.rect = None
         # Characteristics
         self.name = "{}-{}".format(self.__class__.__name__, next(Node.id_counter))
         # Variables
-        self.pos = self.world.randomize_position() if pos is None else self.world.clamp_position(pos)
+        self.pos = self.engine.random_map_position() if pos is None else self.engine.clamp_map_position(pos)
         # Initialize
         self.load_image()
         self.update_rect()
@@ -63,10 +63,10 @@ class Escape(Node):
 
 class LifeForm(Node):
 
-    def __init__(self, world, pos=None):
-        super().__init__(world=world, pos=pos)
+    def __init__(self, engine, pos=None):
+        super().__init__(engine=engine, pos=pos)
         self.nutrition = 0
-        self.add(self.world.lifeforms)
+        self.add(self.engine.lifeforms)
 
     def die(self):
         self.kill()
@@ -74,41 +74,41 @@ class LifeForm(Node):
 
 class Fruit(LifeForm):
     
-    def __init__(self, world, pos=None):
-        super().__init__(world=world, pos=pos)
-        self.add(self.world.fruits)
+    def __init__(self, engine, pos=None):
+        super().__init__(engine=engine, pos=pos)
+        self.add(self.engine.fruits)
 
     @classmethod
-    def spawn(cls, world):
+    def spawn(cls, engine):
         fruit_class = random.choice(cls.__subclasses__())
-        return fruit_class(world)
+        return fruit_class(engine)
  
 
 class Cherry(Fruit):
 
-    def __init__(self, world, pos=None):
-        super().__init__(world=world, pos=pos)
+    def __init__(self, engine, pos=None):
+        super().__init__(engine=engine, pos=pos)
         self.nutrition = 750
 
     def get_image(self):
-        return self.world.images_fruits['cherry']
+        return self.engine.images_fruits['cherry']
 
 
 class Banana(Fruit):
 
-    def __init__(self, world, pos=None):
-        super().__init__(world=world, pos=pos)
+    def __init__(self, engine, pos=None):
+        super().__init__(engine=engine, pos=pos)
         self.nutrition = 2000
 
     def get_image(self):
-        return self.world.images_fruits['banana']
+        return self.engine.images_fruits['banana']
 
 
 class Creature(LifeForm):
 
     AGE_COST = 0.00075
 
-    def __init__(self, world, pos=None, parent=None):
+    def __init__(self, engine, pos=None, parent=None):
         # Parent
         self.parent = parent
         self.carnivore = False
@@ -125,10 +125,10 @@ class Creature(LifeForm):
             self.perception = self.parent.perception.mutate()
             self.generation = self.parent.generation + 1
         # LifeForm
-        super().__init__(world=world, pos=pos)
+        super().__init__(engine=engine, pos=pos)
         self.nutrition = self.size.cost * 700
         # PyGame
-        self.add(self.world.creatures)
+        self.add(self.engine.creatures)
         # Variables
         self.age = 0
         self.energy = self.nutrition  # Start_energy = Nutrition value
@@ -141,7 +141,7 @@ class Creature(LifeForm):
 
     def get_image(self):
         # Size
-        for images_size, images in self.world.images_creatures:
+        for images_size, images in self.engine.images_creatures:
             if self.size.value >= images_size:
                 return images[1 if self.carnivore else 0]
         # Fallback on custom surface
@@ -151,14 +151,31 @@ class Creature(LifeForm):
 
     def reproduce(self):
         self.energy -= self.nutrition * 0.5
-        Creature(world=self.world, parent=self)
+        Creature(engine=self.engine, parent=self)
 
     def is_related(self, other):
         return (self.parent == other) or (other.parent == self) or (self.parent == other.parent)
 
+    def look_nearby(self):
+        # Min bounds
+        xmin, ymin = self.engine.get_grid_xy(
+            self.pos.x - self.perception_range, 
+            self.pos.y - self.perception_range
+        )
+        # Max bounds
+        xmax, ymax = self.engine.get_grid_xy(
+            self.pos.x + self.perception_range, 
+            self.pos.y + self.perception_range
+        )
+        # Look in cells
+        for cellx in range(xmin, xmax+1):
+            for celly in range(ymin, ymax+1):
+                for lf in self.engine.grid[cellx][celly]:
+                    yield lf
+
     def look(self):
-        # Look for lifeforms in range
-        for lf in self.world.lifeforms:
+        # Look for lifeforms nearby
+        for lf in self.look_nearby():
             # Fruits are never a predator
             if isinstance(lf, Fruit):
                 yield lf, False
@@ -203,13 +220,13 @@ class Creature(LifeForm):
                 # Cannot determine feeing direction, can happen if vector is (0,0)
                 # Just pass pos=None to make it random....
                 target_pos = None
-            self.set_target(Escape(self.world, pos=target_pos))
+            self.set_target(Escape(self.engine, pos=target_pos))
         # Did we post a prey?
         elif prey:
             self.set_target(prey)
         # Otherwise, continue exploring
         elif not self.target:
-            self.set_target(Exploration(self.world))
+            self.set_target(Exploration(self.engine))
     
     def consume_target(self):
         # Add energy
@@ -259,18 +276,18 @@ class Creature(LifeForm):
         else:
             self.pos += vector.normalize() * self.speed.value
             self.energy -= self.speed.cost * self.size.cost  # Energy to move (volume of creature * speed**2)
-            if self.world.selected is self:
+            if self.engine.selected is self:
                 # Past waypoints
                 if len(self.waypoints) > 0:
                     wp0 = self.waypoints[0]
                     for i in range(1, len(self.waypoints)):
                         wp1 = self.waypoints[i]
-                        pygame.draw.line(self.world.map, (160,192,160), wp0, wp1, 2)
+                        pygame.draw.line(self.engine.map, (160,192,160), wp0, wp1, 2)
                         wp0 = wp1
-                    pygame.draw.line(self.world.map, (160,192,160), wp0, self.pos, 2)
+                    pygame.draw.line(self.engine.map, (160,192,160), wp0, self.pos, 2)
                 # Current perception and target
-                pygame.draw.circle(self.world.map, (0,0,255), self.pos, self.perception_range, 1)
-                pygame.draw.line(self.world.map, (0,0,255), self.pos, self.target.pos, 1)
+                pygame.draw.circle(self.engine.map, (0,0,255), self.pos, self.perception_range, 1)
+                pygame.draw.line(self.engine.map, (0,0,255), self.pos, self.target.pos, 1)
 
     def update(self):
         # Time passes...
@@ -284,7 +301,7 @@ class Creature(LifeForm):
             self.reproduce()
         # If our prey is dead, drop it.
         self.refresh_target()         
-        # Either way, move and update
+        # Lastly, move.
         self.move()
         self.update_rect()
 

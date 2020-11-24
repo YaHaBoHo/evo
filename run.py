@@ -1,7 +1,7 @@
-from evo.world import World
+from evo.engine import Engine
 
 # TODO : Command-line arguments
 
-world = World()
-world.simulate()
-world.cleanup()
+engine = Engine()
+engine.simulate()
+engine.cleanup()
