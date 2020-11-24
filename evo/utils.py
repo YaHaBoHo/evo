@@ -1,8 +1,6 @@
 import pathlib
 import pygame
 
-# TODO : Type hints
-# TODO : https://www.pygame.org/wiki/Spritesheet
 
 pygame.init()
 
@@ -124,20 +122,28 @@ def load_image_file(file_name, alpha=True) -> pygame.Surface:
         return img.convert()
 
 
-def load_image_strip(file_name, size, alpha=True):
+def load_image_strip(file_name, alpha=True):
     img_list = list()
     img_strip = load_image_file(file_name, alpha=False)
-    for posx in range(0, img_strip.get_width(), size):
-        img = pygame.Surface((size, size)).convert()
+    img_size = img_strip.get_height()
+    for posx in range(0, img_strip.get_width(), img_size):
+        img = pygame.Surface((img_size, img_size)).convert()
         img.set_colorkey(ALPHA_COLOR)
-        img.blit(img_strip, (0, 0), (posx, 0, size, size))
+        img.blit(img_strip, (0, 0), (posx, 0, img_size, img_size))
         img_list.append(img.convert())
-    return img_list
-    
+    return img_size, img_list
+   
 
 def load_image_files(file_pattern, alpha=True):
     return [ load_image_file(p.name, alpha) for p in IMAGEDIR.glob(file_pattern) if p.is_file() ]
 
+
+def load_image_strips(file_pattern, alpha=True):
+    return sorted(
+        [load_image_strip(f.name, alpha=True) for f in IMAGEDIR.glob(file_pattern) if f.is_file()],
+        key=lambda x: x[0], 
+        reverse=True
+    )
 
 def load_map_tiles():
     return {
@@ -147,14 +153,14 @@ def load_map_tiles():
     }
 
 
-def load_creature_sprites():
-    sprites = dict()
-    for item in IMAGEDIR.glob("sp_creature_*.bmp"):
-        if item.is_file():
-            img_size = int(item.stem.split("_")[2])
-            creature_images = load_image_strip(item.name, size=img_size)
-            sprites[img_size] = creature_images
-    return sprites
+def load_creature_sprites(scale_to):
+    # Load
+    images_creatures = load_image_strips("sp_creature_*.bmp")
+    # Scale
+    scale_from = (images_creatures[-1][0], images_creatures[0][0])
+    return [
+        (scale(img_size, *scale_from, *scale_to), img_list)
+    for img_size, img_list in images_creatures]
 
 
 def load_fruit_sprites():
@@ -165,13 +171,3 @@ def load_fruit_sprites():
             fruit_image = load_image_file(item.name)
             sprites[fruit_type] = fruit_image
     return sprites
-
-
-def load_images():
-    return {
-        'sprites': {
-            'creature': load_creature_sprites(),
-            'fruit': load_fruit_sprites()
-        },
-        'map': load_map_tiles()
-    }

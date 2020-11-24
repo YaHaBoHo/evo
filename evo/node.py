@@ -5,10 +5,6 @@ import pygame
 from evo import utils
 from evo.dna import Size, Speed, Perception
 
-# TODO : Fleeing from carnivores
-# TODO : Poison fruits 
-# TODO : Memory and fruit identification
-# TODO : Type hints
 
 # Initialize
 pygame.init()
@@ -95,7 +91,7 @@ class Cherry(Fruit):
         self.nutrition = 750
 
     def get_image(self):
-        return self.world.images['sprites']['fruit']['cherry']
+        return self.world.images_fruits['cherry']
 
 
 class Banana(Fruit):
@@ -105,12 +101,12 @@ class Banana(Fruit):
         self.nutrition = 2000
 
     def get_image(self):
-        return self.world.images['sprites']['fruit']['banana']
+        return self.world.images_fruits['banana']
 
 
 class Creature(LifeForm):
 
-    AGE_MALUS = 0.00075
+    AGE_COST = 0.00075
 
     def __init__(self, world, pos=None, parent=None):
         # Parent
@@ -139,15 +135,19 @@ class Creature(LifeForm):
         self.target = None
         self.waypoints = collections.deque(maxlen=10)
 
+    @property
+    def perception_range(self):
+        return self.perception.value * 60
+
     def get_image(self):
-        # Color
-        idx = 1 if self.carnivore else 0
         # Size
-        for s in self.world.creature_sizes:
-            if self.size.value * 10 >= s:
-                return self.world.images['sprites']['creature'][s][idx]
-        # Fallback on smallest sprite
-        return self.world.images['sprites']['creature'][self.world.creature_sizes[-1]][idx]
+        for images_size, images in self.world.images_creatures:
+            if self.size.value >= images_size:
+                return images[1 if self.carnivore else 0]
+        # Fallback on custom surface
+        fallback = pygame.Surface((10, 10))
+        fallback.fill((255,0,0) if self.carnivore else (0,255,0))
+        return fallback
 
     def reproduce(self):
         self.energy -= self.nutrition * 0.5
@@ -162,11 +162,15 @@ class Creature(LifeForm):
             # Fruits are never a predator
             if isinstance(lf, Fruit):
                 yield lf, False
-            # Creatures can be prey or predator, depending on size diff
-            elif isinstance(lf, Creature) and not self.is_related(lf):
-                if self.size.value > lf.size.value * 1.1:
+            elif isinstance(lf, Creature):
+                # Ignore self or related
+                if lf is self or self.is_related(lf):
+                    continue
+                # Smaller creatures are a prey
+                if self.size.value > lf.size.value * 1.2:
                     yield lf, False
-                elif lf.size.value > self.size.value * 1.1:
+                # Bigger creatures are a predator
+                elif lf.size.value > self.size.value * 1.2:
                     yield lf, True
 
     def select_target(self):
@@ -180,21 +184,21 @@ class Creature(LifeForm):
             # If target a predator
             if is_predator:
                 distance = vector.magnitude()
-                if distance <= self.perception.value * 100:
+                if distance <= self.perception_range:
                     score = 1 / max(1, distance)
                     if score > predator_score:
                         predator, predator_score, predator_vector = lf, score, vector
             # If target is a prey, and no predator was spotted
             elif not predator:
                 distance = vector.magnitude()
-                if distance <= self.perception.value * 100:
+                if distance <= self.perception_range:
                     score = lf.nutrition / max(1, distance**2)
                     if score > prey_score:
                         prey, prey_score = lf, score
         # Did we spot a predator?
         if predator:
             try:
-                target_pos = self.pos-predator_vector.normalize()*self.perception.value*100
+                target_pos = self.pos-predator_vector.normalize()*self.perception_range
             except ValueError:
                 # Cannot determine feeing direction, can happen if vector is (0,0)
                 # Just pass pos=None to make it random....
@@ -230,7 +234,7 @@ class Creature(LifeForm):
             # If prey alive but is is a creature, check its distance
             elif isinstance(self.target, Creature):
                 # If creature-prey is too far, drop it
-                if self.vector_to(self.target).magnitude() > self.perception.value * 100:
+                if self.vector_to(self.target).magnitude() > self.perception_range:
                     self.set_target(None)
         # Look for a new target id:
         # - We just droppped our target
@@ -265,13 +269,13 @@ class Creature(LifeForm):
                         wp0 = wp1
                     pygame.draw.line(self.world.map, (160,192,160), wp0, self.pos, 2)
                 # Current perception and target
-                pygame.draw.circle(self.world.map, (0,0,255), self.pos, self.perception.value*100, 1)
+                pygame.draw.circle(self.world.map, (0,0,255), self.pos, self.perception_range, 1)
                 pygame.draw.line(self.world.map, (0,0,255), self.pos, self.target.pos, 1)
 
     def update(self):
         # Time passes...
         self.age += 1
-        self.energy -= self.age * self.AGE_MALUS + self.perception.cost
+        self.energy -= self.age * self.AGE_COST + self.perception.cost
         # Check if we ran out of energy
         if self.energy <= 0:
             self.die()
