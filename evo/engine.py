@@ -25,15 +25,15 @@ pygame.display.set_caption("eVo")
 
 class Engine():
 
-    def __init__(self, map_tiles=None, screen_resolution=None, fullscreen=False):
+    def __init__(self, map_tiles=None, screen_resolution=None, fullscreen=False, display=0):
         # Screen
         if fullscreen:
-            self.screen = pygame.display.set_mode(flags=pygame.FULLSCREEN)
+            self.screen = pygame.display.set_mode(display=display, flags=pygame.FULLSCREEN)
             self.screen_size = utils.Int2D(*self.screen.get_size())
         else:
             screen_size = SCREEN_DEFAULT if screen_resolution is None else screen_resolution
             self.screen_size = utils.Int2D(*screen_size)      
-            self.screen = pygame.display.set_mode(self.screen_size.xy)
+            self.screen = pygame.display.set_mode(self.screen_size.xy, display=0)
         # Images
         self.images_map = utils.load_map_images()
         self.images_fruits = utils.load_fruit_images()
