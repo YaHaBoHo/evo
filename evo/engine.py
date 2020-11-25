@@ -12,7 +12,7 @@ SCREEN_DEFAULT = (1024, 768)
 SCREEN_BACKGROUND = (92, 142, 167)
 ENGINE_SPEED = (1, 100)
 WORLD_SCALE = (0.25, 1)
-MAP_DEFAULT = (7, 5)
+MAP_DEFAULT = (6, 4)
 MAP_TILE_SIZE = 256
 MAP_MARGIN = 20
 GRID_CELL_SIZE = 128
@@ -40,7 +40,6 @@ class Engine():
         self.images_creatures = utils.load_creature_images((Size.VMIN, Size.VMAX))
         # Map
         self.map_tiles = utils.Int2D(*MAP_DEFAULT if map_tiles is None else map_tiles)
-        self.map_tiles = utils.Int2D(6, 4)
         self.map_size = self.map_tiles * MAP_TILE_SIZE
         self.map = pygame.Surface(self.map_size.xy)
         self.map.set_colorkey(utils.ALPHA_COLOR)
