@@ -3,7 +3,7 @@ import itertools
 import collections
 import pygame
 from evo import utils
-from evo.dna import Size, Speed, Perception
+from evo.dna import Size, Speed, Perception, Digestion
 
 
 # Initialize
@@ -111,22 +111,23 @@ class Creature(LifeForm):
     def __init__(self, engine, pos=None, parent=None):
         # Parent
         self.parent = parent
-        self.carnivore = False
         # Specs
         if self.parent is None:
             self.size = Size()
             self.speed = Speed()
             self.perception = Perception()
+            self.digestion = Digestion()
             self.generation = 1
         else:
             pos = self.parent.pos
             self.size = self.parent.size.mutate()
             self.speed = self.parent.speed.mutate()
             self.perception = self.parent.perception.mutate()
+            self.digestion = self.parent.digestion.mutate()
             self.generation = self.parent.generation + 1
         # LifeForm
         super().__init__(engine=engine, pos=pos)
-        self.nutrition = self.size.cost * 700
+        self.nutrition = self.size.cost * 2000
         # PyGame
         self.add(self.engine.creatures)
         # Variables
@@ -135,18 +136,24 @@ class Creature(LifeForm):
         self.target = None
         self.waypoints = collections.deque(maxlen=10)
 
-    @property
-    def perception_range(self):
-        return self.perception.value * 60
-
     def get_image(self):
+        # Color
+        if self.digestion.value >= 5.5:
+            # Carnivore
+            color = 2
+        elif self.digestion.value <= 4.5:
+            # Herbivore
+            color = 0
+        else:
+            # Omnivore
+            color = 1
         # Size
         for images_size, images in self.engine.images_creatures:
             if self.size.value >= images_size:
-                return images[1 if self.carnivore else 0]
+                return images[color]
         # Fallback on custom surface
         fallback = pygame.Surface((10, 10))
-        fallback.fill((255,0,0) if self.carnivore else (0,255,0))
+        fallback.fill((255,255,0))
         return fallback
 
     def reproduce(self):
@@ -159,13 +166,13 @@ class Creature(LifeForm):
     def look_nearby(self):
         # Min bounds
         xmin, ymin = self.engine.get_grid_xy(
-            self.pos.x - self.perception_range, 
-            self.pos.y - self.perception_range
+            self.pos.x - self.perception.distance, 
+            self.pos.y - self.perception.distance
         )
         # Max bounds
         xmax, ymax = self.engine.get_grid_xy(
-            self.pos.x + self.perception_range, 
-            self.pos.y + self.perception_range
+            self.pos.x + self.perception.distance, 
+            self.pos.y + self.perception.distance
         )
         # Look in cells
         for cellx in range(xmin, xmax+1):
@@ -201,21 +208,21 @@ class Creature(LifeForm):
             # If target a predator
             if is_predator:
                 distance = vector.magnitude()
-                if distance <= self.perception_range:
+                if distance <= self.perception.distance:
                     score = 1 / max(1, distance)
                     if score > predator_score:
                         predator, predator_score, predator_vector = lf, score, vector
             # If target is a prey, and no predator was spotted
             elif not predator:
                 distance = vector.magnitude()
-                if distance <= self.perception_range:
-                    score = lf.nutrition / max(1, distance**2)
+                if distance <= self.perception.distance:
+                    score = self.get_nutrition(lf) / max(1, distance**2)
                     if score > prey_score:
                         prey, prey_score = lf, score
         # Did we spot a predator?
         if predator:
             try:
-                target_pos = self.pos-predator_vector.normalize()*self.perception_range
+                target_pos = self.pos-predator_vector.normalize()*self.perception.distance
             except ValueError:
                 # Cannot determine feeing direction, can happen if vector is (0,0)
                 # Just pass pos=None to make it random....
@@ -227,14 +234,17 @@ class Creature(LifeForm):
         # Otherwise, continue exploring
         elif not self.target:
             self.set_target(Exploration(self.engine))
-    
+
+    def get_nutrition(self, other):
+        if isinstance(other, Creature):
+            return self.digestion.carnivore * other.nutrition
+        else:
+            return self.digestion.herbivore * other.nutrition
+
     def consume_target(self):
         # Add energy
-        self.energy += self.target.nutrition
-        # Carnivore?
-        if isinstance(self.target, Creature):
-            self.carnivore = True
-            self.load_image()
+        self.energy += self.get_nutrition(self.target)
+        # Kill target
         self.target.die()
         self.set_target(None)
 
@@ -251,7 +261,7 @@ class Creature(LifeForm):
             # If prey alive but is is a creature, check its distance
             elif isinstance(self.target, Creature):
                 # If creature-prey is too far, drop it
-                if self.vector_to(self.target).magnitude() > self.perception_range:
+                if self.vector_to(self.target).magnitude() > self.perception.distance:
                     self.set_target(None)
         # Look for a new target id:
         # - We just droppped our target
@@ -286,8 +296,8 @@ class Creature(LifeForm):
                         wp0 = wp1
                     pygame.draw.line(self.engine.map, (160,192,160), wp0, self.pos, 2)
                 # Current perception and target
-                pygame.draw.circle(self.engine.map, (0,0,255), self.pos, self.perception_range, 1)
-                pygame.draw.line(self.engine.map, (0,0,255), self.pos, self.target.pos, 1)
+                pygame.draw.circle(self.engine.map, (96,96,96), self.pos, self.perception.distance, 1)
+                pygame.draw.line(self.engine.map, (96,96,96), self.pos, self.target.pos, 1)
 
     def update(self):
         # Time passes...

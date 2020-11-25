@@ -3,7 +3,7 @@ import random
 import pygame
 from evo import utils
 from evo.node import Creature, Fruit
-from evo.dna import  Size, Speed, Perception
+from evo.dna import  Size, Speed, Perception, Digestion
 from evo.chart import Chart
 
 
@@ -25,7 +25,7 @@ class Engine():
     BACKGROUND_COLOR = (92, 142, 167)
 
 
-    def __init__(self, map_width=7, map_height=5):
+    def __init__(self, map_width=6, map_height=4):
         # Screen
         self.screen_size = utils.Int2D(1024, 768)  # TODO : Configureable screen size
         self.screen = pygame.display.set_mode(self.screen_size.xy)
@@ -55,7 +55,7 @@ class Engine():
         self.clear_grid()
         # Chart
         ## Config
-        self.chart = Chart(size=(self.screen_size/3).xy, history=150)  # TODO : Dynamic
+        self.chart = Chart(size=(self.screen_size/2).xy, history=150)  # TODO : Configureable
         self.chart_pos = self.screen_size - self.chart.size
         self.chart_active = next(self.chart.active)
         self.chart_interval = 100  # TODO : Configureable
@@ -63,9 +63,10 @@ class Engine():
         self.chart.add_metric("fps", 0)
         self.chart.add_metric("creatures", 0)
         self.chart.add_metric("fruits", 0)
-        self.chart.add_metric("size", 0, Size.VMAX)
-        self.chart.add_metric("speed", 0, Speed.VMAX)
-        self.chart.add_metric("perception", 0, Perception.VMAX)
+        self.chart.add_metric("size", Size.VMIN, Size.VMAX)
+        self.chart.add_metric("speed", Speed.VMIN, Speed.VMAX)
+        self.chart.add_metric("perception", Perception.VMIN, Perception.VMAX)
+        self.chart.add_metric("digestion", Digestion.VMIN, Perception.VMAX)
         # Node groups
         self.fruits = pygame.sprite.Group()
         self.creatures = pygame.sprite.Group()
@@ -226,8 +227,8 @@ class Engine():
 
     def random_map_position(self) -> pygame.math.Vector2:
         return pygame.Vector2(
-            (self.map_size.x -self.WORLD_MARGIN * 2) * random.random() + self.WORLD_MARGIN,
-            (self.map_size.y -self.WORLD_MARGIN * 2) * random.random() + self.WORLD_MARGIN
+            (self.map_size.x - self.WORLD_MARGIN * 2) * random.random() + self.WORLD_MARGIN,
+            (self.map_size.y - self.WORLD_MARGIN * 2) * random.random() + self.WORLD_MARGIN
         )
 
     def clamp_map_position(self, pos:pygame.math.Vector2) -> pygame.math.Vector2:
@@ -250,7 +251,7 @@ class Engine():
         if fruits_max is None:
             fruits_max = tile_count * 6
         if fruits_chance is None:
-            fruits_chance = 0.005
+            fruits_chance = 0.008
 
         # Creatures
         for _ in range(creatures_start):
@@ -273,7 +274,8 @@ class Engine():
                     'fruits': (len(self.fruits),),
                     'size': utils.stat_quantiles([c.size.value for c in self.creatures]),
                     'speed': utils.stat_quantiles([c.speed.value for c in self.creatures]),
-                    'perception': utils.stat_quantiles([c.perception.value for c in self.creatures])
+                    'perception': utils.stat_quantiles([c.perception.value for c in self.creatures]),
+                    'digestion': utils.stat_quantiles([c.digestion.value for c in self.creatures])
                 }
                 # Push to chart
                 self.chart.add_data(data=new_data)
