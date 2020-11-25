@@ -78,7 +78,7 @@ class Engine():
         self.time = 0   
 
     def clear_grid(self):
-        self.grid = [[[] for _cy in range(self.grid_cells.y)] for _cx in range(self.grid_cells.x)]
+        self.grid = [[[] for _y in range(self.grid_cells.y)] for _x in range(self.grid_cells.x)]
 
     def update_grid(self):
         # First, clear.

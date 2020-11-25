@@ -33,11 +33,13 @@ class Size(Gene):
         return 4.189 * self.value**3
         # Volume of the creature (phere)
 
+
 class Speed(Gene):
 
     def _cost(self):
         return 0.5 * self.value**2
         # Speed portion of kinetic energy
+
 
 class Perception(Gene):
 

@@ -13,6 +13,7 @@ TEXT_FONT = pygame.font.SysFont(None, 16)
 TEXT_COLOR = (0,0,0)
 ALPHA_COLOR = (255,0,255)
 
+
 # ----- Classes ----- #
 
 class Int2D():
@@ -109,7 +110,7 @@ def clamp(v, vmin, vmax):
 def scale(v, old_min, old_max, new_min, new_max):
     if old_max == old_min:
         return new_min
-    return (new_max - new_min) * (v - old_min) / (old_max - old_min)
+    return new_min + (new_max - new_min) * (v - old_min) / (old_max - old_min)
 
 
 def gui_text(text, fg=None, bg=None):
