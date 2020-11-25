@@ -88,7 +88,7 @@ class Cherry(Fruit):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.nutrition = 750
+        self.nutrition = 1000
 
     def get_image(self):
         return self.engine.images_fruits['cherry']
@@ -104,9 +104,19 @@ class Banana(Fruit):
         return self.engine.images_fruits['banana']
 
 
+class Pineapple(Fruit):
+
+    def __init__(self, engine, pos=None):
+        super().__init__(engine=engine, pos=pos)
+        self.nutrition = 3000
+
+    def get_image(self):
+        return self.engine.images_fruits['pineapple']
+
+
 class Creature(LifeForm):
 
-    AGE_COST = 0.00075
+    DECAY = 0.00075
 
     def __init__(self, engine, pos=None, parent=None):
         # Parent
@@ -136,6 +146,10 @@ class Creature(LifeForm):
         self.target = None
         self.waypoints = collections.deque(maxlen=10)
 
+    @property
+    def reproduction_cost(self):
+        return self.nutrition * 0.5
+
     def get_image(self):
         # Color
         if self.digestion.value >= 5.5:
@@ -157,7 +171,7 @@ class Creature(LifeForm):
         return fallback
 
     def reproduce(self):
-        self.energy -= self.nutrition * 0.5
+        self.energy -= self.reproduction_cost
         Creature(engine=self.engine, parent=self)
 
     def is_related(self, other):
@@ -191,10 +205,10 @@ class Creature(LifeForm):
                 if lf is self or self.is_related(lf):
                     continue
                 # Smaller creatures are a prey
-                if self.size.value > lf.size.value * 1.2:
+                if self.size.value > lf.size.value * 1.25:
                     yield lf, False
                 # Bigger creatures are a predator
-                elif lf.size.value > self.size.value * 1.2:
+                elif lf.size.value > self.size.value * 1.25:
                     yield lf, True
 
     def select_target(self):
@@ -302,12 +316,12 @@ class Creature(LifeForm):
     def update(self):
         # Time passes...
         self.age += 1
-        self.energy -= self.age * self.AGE_COST + self.perception.cost
+        self.energy -= self.age * self.DECAY + self.perception.cost
         # Check if we ran out of energy
         if self.energy <= 0:
             self.die()
         # Check if we can reproduce
-        if self.energy >= self.nutrition * 1.5:
+        if self.energy >= self.nutrition + self.reproduction_cost:
             self.reproduce()
         # If our prey is dead, drop it.
         self.refresh_target()         

@@ -2,6 +2,6 @@ from evo.engine import Engine
 
 # TODO : Command-line arguments
 
-engine = Engine()
+engine = Engine(fullscreen=True)
 engine.simulate()
 engine.cleanup()

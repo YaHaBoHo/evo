@@ -56,7 +56,6 @@ class Int2D():
     def __floordiv__(self, other):
         return self.__truediv__(other)
 
-
     @property
     def x(self):
         return int(self._x)
