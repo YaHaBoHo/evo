@@ -24,7 +24,7 @@ class Node(pygame.sprite.Sprite):
         # Characteristics
         self.name = "{}-{}".format(self.__class__.__name__, next(Node.id_counter))
         # Variables
-        self.pos = self.engine.random_map_position() if pos is None else self.engine.clamp_map_position(pos)
+        self.pos = self.engine.random_map_position() if pos is None else self.validate_pos(pos)
         # Initialize
         self.load_image()
         self.update_rect()
@@ -35,6 +35,9 @@ class Node(pygame.sprite.Sprite):
             round(self.pos.y),
             round(self.pos.x)
         )
+
+    def validate_pos(self, pos):
+        return self.engine.clamp_map_position(pos)
 
     def vector_to(self, other):
         return other.pos - self.pos
@@ -58,7 +61,9 @@ class Exploration(Node):
 
 
 class Escape(Node):
-    pass
+
+    def validate_pos(self, pos):
+        return self.engine.bounce_map_position(pos)
 
 
 class LifeForm(Node):

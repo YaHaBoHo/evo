@@ -10,7 +10,7 @@ from evo.chart import Chart
 # Constants and Defaults
 SCREEN_DEFAULT = (1024, 768)
 SCREEN_BACKGROUND = (92, 142, 167)
-ENGINE_SPEED = (5, 100)
+ENGINE_SPEED = (1, 100)
 WORLD_SCALE = (0.25, 1)
 MAP_DEFAULT = (7, 5)
 MAP_TILE_SIZE = 256
@@ -245,6 +245,20 @@ class Engine():
             utils.clamp(pos.x, MAP_MARGIN, self.map_size.x-MAP_MARGIN),
             utils.clamp(pos.y, MAP_MARGIN, self.map_size.y-MAP_MARGIN)
         )
+
+    def bounce_map_position(self, pos:pygame.math.Vector2) -> pygame.math.Vector2:
+        # If X is out of range, randomize it.
+        if MAP_MARGIN <= pos.x <= self.map_size.x-MAP_MARGIN:
+            posx = pos.x
+        else:
+            posx = (self.map_size.y - MAP_MARGIN * 2) * random.random() + MAP_MARGIN
+        # If Y is out of range, randomize it.
+        if MAP_MARGIN <= pos.y <= self.map_size.y-MAP_MARGIN:
+            posy = pos.y
+        else:
+            posy = (self.map_size.y - MAP_MARGIN * 2) * random.random() + MAP_MARGIN
+        # Return
+        return pygame.Vector2(posx, posy)
 
     def simulate(self, creatures_start=None, fruits_start=None, fruits_chance=None, fruits_max=None):
       
