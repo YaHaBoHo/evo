@@ -3,15 +3,19 @@ import collections
 import pygame
 from evo import utils
 
+# Constants and Defaults
+CHART_BACKGROUND = (192, 192, 192)
+CHART_ALPHA = 192
+CHART_LINE_COLOR = (0, 0, 255)
+CHART_AREA_COLOR = (64, 128, 255)
+
+
+
+# Initialize
 pygame.init()
 
 
 class Chart():
-
-    BACKGROUND_COLOR = (192, 192, 192)
-    PLOT_LINE_COLOR = (0, 0, 255)
-    PLOT_AREA_COLOR = (64, 128, 255)
-    PLOT_ALPHA = 192
 
     def __init__(self, size, history=100):
         # Config
@@ -40,12 +44,12 @@ class Chart():
             # Fetch metric data
             data = self.data[metric_name]
             # Reset background and alpha
-            self.plots[metric_name].fill(self.BACKGROUND_COLOR)
-            self.plots[metric_name].set_alpha(self.PLOT_ALPHA)
+            self.plots[metric_name].fill(CHART_BACKGROUND)
+            self.plots[metric_name].set_alpha(CHART_ALPHA)
             # Not enough data, render placeholder text and quit
             if len(data) < 3:
                 self.plots[metric_name].blit(
-                    source=utils.gui_text("{} (not enough data)".format(metric_name), bg=self.BACKGROUND_COLOR),
+                    source=utils.gui_text("{} (not enough data)".format(metric_name), bg=CHART_BACKGROUND),
                     dest=(int(0.5*self.size.x-60), int(0.5*self.size.y)))
                 continue
             # Draw chart
@@ -64,36 +68,36 @@ class Chart():
                     high1 = min(self.size.y - utils.scale(data[i][2], plot_min, plot_max, 0, self.size.y), mid0.y)
                     pygame.draw.rect(
                         self.plots[metric_name], 
-                        self.PLOT_AREA_COLOR, 
+                        CHART_AREA_COLOR, 
                         pygame.Rect((posx-slotx, high1), (slotx+1, low1-high1+1))
                     )
                 except IndexError:
                     pass
                 # Line-chart
                 mid1 = utils.Int2D(posx, self.size.y - utils.scale(data[i][0], plot_min, plot_max, 0, self.size.y))
-                pygame.draw.line(self.plots[metric_name], self.PLOT_LINE_COLOR, mid0.xy, mid1.xy, 1)
+                pygame.draw.line(self.plots[metric_name], CHART_LINE_COLOR, mid0.xy, mid1.xy, 1)
                 # Reset to next
                 mid0 = mid1
             # Chart title
             self.plots[metric_name].blit(
-                source=utils.gui_text(metric_name, bg=self.BACKGROUND_COLOR),
+                source=utils.gui_text(metric_name, bg=CHART_BACKGROUND),
                 dest=(int(0.5*self.size.x-30), 10)
             )
             # Y-min
             self.plots[metric_name].blit(
-                source=utils.gui_text(round(plot_min, 2), bg=self.BACKGROUND_COLOR),
+                source=utils.gui_text(round(plot_min, 2), bg=CHART_BACKGROUND),
                 dest=(10, self.size.y-15)
             )
             # Y-max
             self.plots[metric_name].blit(
-                source=utils.gui_text(round(plot_max, 2), bg=self.BACKGROUND_COLOR),
+                source=utils.gui_text(round(plot_max, 2), bg=CHART_BACKGROUND),
                 dest=(10, 10)
             ) 
             # Y-latest
             _latest = utils.gui_text(
                 text=round(data[-1][0], 2), 
-                fg=self.PLOT_LINE_COLOR,
-                bg=self.BACKGROUND_COLOR
+                fg=CHART_LINE_COLOR,
+                bg=CHART_BACKGROUND
             )
             self.plots[metric_name].blit(
                 source=_latest,

@@ -33,7 +33,7 @@ class Gene():
 
 class Size(Gene):
 
-    COST_RATIO = 0.4
+    COST_RATIO = 0.3
 
     def _cost(self):
         return 4.189 * self.value**3
