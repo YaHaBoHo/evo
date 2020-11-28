@@ -157,6 +157,10 @@ def load_map_images():
     }
 
 
+def load_pond_images():
+    return load_image_files("bg_pond_*.bmp")
+
+
 def load_creature_images(scale_to):
     # Load
     images_creatures = load_image_strips("sp_creature_*.bmp")
