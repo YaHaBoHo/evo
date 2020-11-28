@@ -117,13 +117,17 @@ class Engine():
                 # Pond tile?
                 if 1 < tile_x < self.world_tiles.x-1 and 1 < tile_y < self.world_tiles.y-1:
                     if random.random() > 0.66:
-                        background.blit(self.load_pond_tile(), (tile_pos[0]+64, tile_pos[1]+64))
+                        pond_tile = self.load_pond_tile()
+                        pond_tile_pos = (
+                            tile_pos[0] + random.uniform(0, MAP_TILE_SIZE-pond_tile.get_width()),
+                            tile_pos[1] + random.uniform(0, MAP_TILE_SIZE-pond_tile.get_height())
+                        )
+                        background.blit(pond_tile, pond_tile_pos)
         return background
 
     def load_pond_tile(self):
         pond_tile = random.choice(self.images_ponds) 
         return pygame.transform.rotate(pond_tile, random.randint(0,3) * 90)
-
   
     def load_grass_tile(self, x, y):
         # Tile type?
@@ -249,8 +253,8 @@ class Engine():
 
     def random_map_position(self) -> pygame.math.Vector2:
         return pygame.Vector2(
-            (self.map_size.x - MAP_MARGIN * 2) * random.random() + MAP_MARGIN,
-            (self.map_size.y - MAP_MARGIN * 2) * random.random() + MAP_MARGIN
+            random.uniform(MAP_MARGIN, self.map_size.x - MAP_MARGIN),
+            random.uniform(MAP_MARGIN, self.map_size.y - MAP_MARGIN)
         )
 
     def clamp_map_position(self, pos:pygame.math.Vector2) -> pygame.math.Vector2:

@@ -68,7 +68,6 @@ class Int2D():
     def xy(self):
         return (int(self.x), int(self.y))
 
-
     @classmethod
     def _unsupported(cls, op, other):
         raise TypeError("Unsupported operation: {} {} {}".format(cls, op, type(other)))
