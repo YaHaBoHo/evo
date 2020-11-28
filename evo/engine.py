@@ -10,7 +10,7 @@ from evo.chart import Chart
 # Constants and Defaults
 SCREEN_DEFAULT = (1024, 768)
 SCREEN_BACKGROUND = (27, 104, 143)
-ENGINE_SPEED = (1, 100)
+ENGINE_SPEED = (1, 200)
 WORLD_SCALE = (0.25, 1)
 MAP_DEFAULT = (6, 4)
 MAP_TILE_SIZE = 256
@@ -291,9 +291,9 @@ class Engine():
         if creatures_start is None:
             creatures_start = tile_count * 2
         if fruits_start is None:
-            fruits_start = tile_count * 4  
+            fruits_start = tile_count * 5  
         if fruits_max is None:
-            fruits_max = tile_count * 6
+            fruits_max = tile_count * 8
         if fruits_chance is None:
             fruits_chance = 0.01
 

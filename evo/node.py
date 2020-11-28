@@ -152,7 +152,7 @@ class Creature(LifeForm):
             self.generation = self.parent.generation + 1
         # LifeForm
         super().__init__(engine=engine, pos=pos)
-        self.consume_value = self.size.cost * 2000
+        self.consume_value = self.size.cost * 1800
         self.consume_time = 30 + self.size.value * 5
         # PyGame
         self.add(self.engine.creatures)
@@ -163,7 +163,6 @@ class Creature(LifeForm):
         self.waypoints = collections.deque(maxlen=10)
         self.action = None
         self.pinner = None
-
 
     @property
     def reproduction_cost(self):
@@ -320,10 +319,16 @@ class Creature(LifeForm):
         if vector.magnitude() < self.speed.value + self.size.value:
             self.pos.update(self.target.pos)
             if isinstance(self.target, LifeForm):
-                # If target is a LifeForm, pin it and try consuming it.
+                # If target is a LifeForm, pin it
                 self.pin_target()
+                # Compute consumption time
+                if isinstance(self.target, Creature):
+                    consume_speed = self.digestion.carnivore
+                else:
+                    consume_speed = self.digestion.herbivore
+                # Try consuming target
                 self.action = utils.Task(
-                    timer=self.target.consume_time, 
+                    timer=int(self.target.consume_time/consume_speed), 
                     action=self.consume_target, 
                     validate=self.check_target
                 )
