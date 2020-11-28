@@ -9,6 +9,7 @@ from evo.dna import Size, Speed, Perception, Digestion
 # Initialize
 pygame.init()
 
+
 class Node(pygame.sprite.Sprite):
 
     id_counter = itertools.count()
@@ -25,7 +26,7 @@ class Node(pygame.sprite.Sprite):
 
     def __repr__(self):
         return "{}({},{})".format(
-            self.__class__.__name__,
+            self.name,
             round(self.pos.y),
             round(self.pos.x)
         )
@@ -57,7 +58,7 @@ class PhysicalNode(Node):
         self.rect = None
         # Initialize
         self.load_image()
-        self.update_rect()
+        self.refresh()
 
     def get_image(self):
         image = pygame.Surface((10, 10))
@@ -68,7 +69,7 @@ class PhysicalNode(Node):
         self.image = self.get_image()
         self.rect = self.image.get_rect()
 
-    def update_rect(self):
+    def refresh(self):
         self.rect.centerx = self.pos.x
         self.rect.centery = self.pos.y
 
@@ -77,7 +78,8 @@ class LifeForm(PhysicalNode):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.nutrition = 0
+        self.consume_value = 0
+        self.consume_time = 0
         self.add(self.engine.lifeforms)
 
     def die(self):
@@ -88,6 +90,7 @@ class Fruit(LifeForm):
     
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
+        self.consume_time = 15
         self.add(self.engine.fruits)
 
     @classmethod
@@ -100,7 +103,7 @@ class Cherry(Fruit):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.nutrition = 1000
+        self.consume_value = 1000
 
     def get_image(self):
         return self.engine.images_fruits['cherry']
@@ -110,7 +113,7 @@ class Banana(Fruit):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.nutrition = 2000
+        self.consume_value = 2000
 
     def get_image(self):
         return self.engine.images_fruits['banana']
@@ -120,7 +123,7 @@ class Pineapple(Fruit):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.nutrition = 3000
+        self.consume_value = 3000
 
     def get_image(self):
         return self.engine.images_fruits['pineapple']
@@ -149,18 +152,22 @@ class Creature(LifeForm):
             self.generation = self.parent.generation + 1
         # LifeForm
         super().__init__(engine=engine, pos=pos)
-        self.nutrition = self.size.cost * 2000
+        self.consume_value = self.size.cost * 2000
+        self.consume_time = 30 + self.size.value * 5
         # PyGame
         self.add(self.engine.creatures)
         # Variables
         self.age = 0
-        self.energy = self.nutrition  # Start_energy = Nutrition value
+        self.energy = self.consume_value  # Start_energy = Consumption value
         self.target = None
         self.waypoints = collections.deque(maxlen=10)
+        self.action = None
+        self.pinner = None
+
 
     @property
     def reproduction_cost(self):
-        return self.nutrition * 0.5
+        return self.consume_value * 0.5
 
     def get_image(self):
         # Color
@@ -184,6 +191,12 @@ class Creature(LifeForm):
     def reproduce(self):
         self.energy -= self.reproduction_cost
         Creature(engine=self.engine, parent=self)
+
+    def get_consume_value(self, other):
+        if isinstance(other, Creature):
+            return self.digestion.carnivore * other.consume_value
+        else:
+            return self.digestion.herbivore * other.consume_value
 
     def is_related(self, other):
         return (self.parent == other) or (other.parent == self) or (self.parent == other.parent)
@@ -222,6 +235,11 @@ class Creature(LifeForm):
                 elif lf.size.value > self.size.value * 1.25:
                     yield lf, True
 
+    def check_target(self):
+        if self.target:
+            return self.target.alive()
+        return False
+
     def select_target(self):
         # Init
         predator, predator_score, predator_vector = None, 0, None
@@ -241,7 +259,7 @@ class Creature(LifeForm):
             elif not predator:
                 distance = vector.magnitude()
                 if distance <= self.perception.distance:
-                    score = self.get_nutrition(lf) / max(1, distance**2)
+                    score = self.get_consume_value(lf) / max(1, distance**2)
                     if score > prey_score:
                         prey, prey_score = lf, score
         # Did we spot a predator?
@@ -260,18 +278,18 @@ class Creature(LifeForm):
         elif not self.target:
             self.set_target(Exploration(self.engine))
 
-    def get_nutrition(self, other):
-        if isinstance(other, Creature):
-            return self.digestion.carnivore * other.nutrition
-        else:
-            return self.digestion.herbivore * other.nutrition
+    def pin_target(self):
+        if isinstance(self.target, Creature):
+            self.target.pinner = self
 
     def consume_target(self):
-        # Add energy
-        self.energy += self.get_nutrition(self.target)
-        # Kill target
-        self.target.die()
-        self.set_target(None)
+        # Is target still alive?
+        if self.target.alive():
+            # Add energy
+            self.energy += self.get_consume_value(self.target)
+            # Kill target
+            self.target.die()
+            self.set_target(None)
 
     def set_target(self, target):
         self.waypoints.append(self.pos.xy)
@@ -301,9 +319,14 @@ class Creature(LifeForm):
         # If within range, jump to tagret
         if vector.magnitude() < self.speed.value + self.size.value:
             self.pos.update(self.target.pos)
-            if isinstance(self.target, LifeForm) and self.target.alive():
-                # If target is a LifeForm and alive, consume it.
-                self.consume_target()
+            if isinstance(self.target, LifeForm):
+                # If target is a LifeForm, pin it and try consuming it.
+                self.pin_target()
+                self.action = utils.Task(
+                    timer=self.target.consume_time, 
+                    action=self.consume_target, 
+                    validate=self.check_target
+                )
             else:
                 # Otherwise, just unset it.
                 self.set_target(None)
@@ -311,32 +334,47 @@ class Creature(LifeForm):
         else:
             self.pos += vector.normalize() * self.speed.value
             self.energy -= self.speed.cost * self.size.cost  # Energy to move (volume of creature * speed**2)
-            if self.engine.selected is self:
-                # Past waypoints
-                if len(self.waypoints) > 0:
-                    wp0 = self.waypoints[0]
-                    for i in range(1, len(self.waypoints)):
-                        wp1 = self.waypoints[i]
-                        pygame.draw.line(self.engine.map, (160,192,160), wp0, wp1, 2)
-                        wp0 = wp1
-                    pygame.draw.line(self.engine.map, (160,192,160), wp0, self.pos, 2)
-                # Current perception and target
-                pygame.draw.circle(self.engine.map, (96,96,96), self.pos, self.perception.distance, 1)
+
+    def refresh(self):
+        # Parent
+        super().refresh()
+        # If needed, disply extra info
+        if self.engine.selected is self:
+            # Draw past waypoints
+            if len(self.waypoints) > 0:
+                wp0 = self.waypoints[0]
+                for i in range(1, len(self.waypoints)):
+                    wp1 = self.waypoints[i]
+                    pygame.draw.line(self.engine.map, (160,192,160), wp0, wp1, 2)
+                    wp0 = wp1
+                pygame.draw.line(self.engine.map, (160,192,160), wp0, self.pos, 2)
+            # Draw a circle for perception
+            pygame.draw.circle(self.engine.map, (96,96,96), self.pos, self.perception.distance, 1)
+            # Draw a line for target (if any)
+            if self.target:
                 pygame.draw.line(self.engine.map, (96,96,96), self.pos, self.target.pos, 1)
 
     def update(self):
         # Time passes...
         self.age += 1
         self.energy -= self.age * self.DECAY + self.perception.cost
-        # Check if we ran out of energy
+        # Check if we ran out of energy.
         if self.energy <= 0:
             self.die()
-        # Check if we can reproduce
-        if self.energy >= self.nutrition + self.reproduction_cost:
-            self.reproduce()
-        # If our prey is dead, drop it.
-        self.refresh_target()         
-        # Lastly, move.
-        self.move()
-        self.update_rect()
-
+        # Do we have an ongoing action?
+        if self.action:
+            self.action.tick()
+        elif self.pinner:
+            # If pinner is dead, drop it.
+            if not self.pinner.alive():
+                self.pinner = None
+        else:
+            # Check if we can reproduce.
+            if self.energy >= self.consume_value + self.reproduction_cost:
+                self.action = utils.Task(timer=30, action=self.reproduce)
+            # If our prey is dead, drop it.
+            self.refresh_target() 
+            # Lastly, move - if possible.
+            self.move()
+        # Either way, refresh sprite(s).
+        self.refresh()

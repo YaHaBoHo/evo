@@ -239,7 +239,7 @@ class Engine():
             self.draw_text("[{}]".format(sc.name), (20, self.screen_size.y-160))
             self.draw_text("Gen: {}".format(sc.generation), (20, self.screen_size.y-140))
             self.draw_text("Age: {}".format(sc.age), (20, self.screen_size.y-120))
-            self.draw_text("Energy: {} / {}".format(int(sc.energy), int(sc.nutrition+sc.reproduction_cost)), (20, self.screen_size.y-100))
+            self.draw_text("Energy: {}".format(int(sc.energy)), (20, self.screen_size.y-100))
             self.draw_text("Size: {}".format(round(sc.size.value, 2)), (20, self.screen_size.y-80))
             self.draw_text("Speed: {}".format(round(sc.speed.value, 2)), (20, self.screen_size.y-60))
             self.draw_text("Perception: {}".format(round(sc.perception.value, 2)), (20, self.screen_size.y-40))
