@@ -9,7 +9,7 @@ from evo.chart import Chart
 
 # Constants and Defaults
 SCREEN_DEFAULT = (1024, 768)
-SCREEN_BACKGROUND = (92, 142, 167)
+SCREEN_BACKGROUND = (27, 104, 143)
 ENGINE_SPEED = (1, 100)
 WORLD_SCALE = (0.25, 1)
 MAP_DEFAULT = (6, 4)
@@ -33,13 +33,17 @@ class Engine():
         else:
             screen_size = SCREEN_DEFAULT if screen_resolution is None else screen_resolution
             self.screen_size = utils.Int2D(*screen_size)      
-            self.screen = pygame.display.set_mode(self.screen_size.xy, display=0)
+            self.screen = pygame.display.set_mode(self.screen_size.xy)
         # Images
         self.images_map = utils.load_map_images()
+        self.images_ponds = utils.load_pond_images()
         self.images_fruits = utils.load_fruit_images()
         self.images_creatures = utils.load_creature_images((Size.VMIN, Size.VMAX))
         # Map
-        self.map_tiles = utils.Int2D(*MAP_DEFAULT if map_tiles is None else map_tiles)
+        if map_tiles is None:
+            self.map_tiles = utils.Int2D(*MAP_DEFAULT)
+        else:
+            self.map_tiles = utils.Int2D(x=max(map_tiles[0],2), y=max(map_tiles[1],2))
         self.map_size = self.map_tiles * MAP_TILE_SIZE
         self.map = pygame.Surface(self.map_size.xy)
         self.map.set_colorkey(utils.ALPHA_COLOR)
@@ -61,10 +65,10 @@ class Engine():
         # Chart
         ## Config
         chart_size = (min(self.screen_size.x/2, 640), min(self.screen_size.y/2, 480))
-        self.chart = Chart(size=chart_size, history=150)  
+        self.chart = Chart(size=chart_size, history=250)  
         self.chart_pos = self.screen_size - self.chart.size
         self.chart_active = next(self.chart.active)
-        self.chart_interval = 100  # TODO : Configureable
+        self.chart_interval = 150  # TODO : Configurable
         ## Metrics
         self.chart.add_metric("cps", 0)
         self.chart.add_metric("creatures", 0)
@@ -104,14 +108,28 @@ class Engine():
 
     def load_world(self):
         background = pygame.Surface(self.world_size.xy)
+        # Background tiles
         for tile_x in range(self.world_tiles.x):
             for tile_y in range(self.world_tiles.y):
                 # Tile coordinates
                 tile_pos = (MAP_TILE_SIZE*tile_x, MAP_TILE_SIZE*tile_y)
-                background.blit(self.load_tile(tile_x, tile_y), tile_pos)
+                background.blit(self.load_grass_tile(tile_x, tile_y), tile_pos)
+                # Pond tile?
+                if 1 < tile_x < self.world_tiles.x-1 and 1 < tile_y < self.world_tiles.y-1:
+                    if random.random() > 0.66:
+                        pond_tile = self.load_pond_tile()
+                        pond_tile_pos = (
+                            tile_pos[0] + random.uniform(0, MAP_TILE_SIZE-pond_tile.get_width()),
+                            tile_pos[1] + random.uniform(0, MAP_TILE_SIZE-pond_tile.get_height())
+                        )
+                        background.blit(pond_tile, pond_tile_pos)
         return background
 
-    def load_tile(self, x, y):
+    def load_pond_tile(self):
+        pond_tile = random.choice(self.images_ponds) 
+        return pygame.transform.rotate(pond_tile, random.randint(0,3) * 90)
+  
+    def load_grass_tile(self, x, y):
         # Tile type?
         if x == 0:
             if y == 0:
@@ -235,8 +253,8 @@ class Engine():
 
     def random_map_position(self) -> pygame.math.Vector2:
         return pygame.Vector2(
-            (self.map_size.x - MAP_MARGIN * 2) * random.random() + MAP_MARGIN,
-            (self.map_size.y - MAP_MARGIN * 2) * random.random() + MAP_MARGIN
+            random.uniform(MAP_MARGIN, self.map_size.x - MAP_MARGIN),
+            random.uniform(MAP_MARGIN, self.map_size.y - MAP_MARGIN)
         )
 
     def clamp_map_position(self, pos:pygame.math.Vector2) -> pygame.math.Vector2:
@@ -247,15 +265,19 @@ class Engine():
 
     def bounce_map_position(self, pos:pygame.math.Vector2) -> pygame.math.Vector2:
         # If X is out of range, randomize it.
-        if MAP_MARGIN <= pos.x <= self.map_size.x-MAP_MARGIN:
+        if pos.x < MAP_MARGIN:
+            posx = random.uniform(MAP_MARGIN, MAP_TILE_SIZE)
+        elif pos.x > self.map_size.x-MAP_MARGIN:
+            posx = random.uniform(self.map_size.x-MAP_TILE_SIZE, self.map_size.x-MAP_MARGIN)
+        else:    
             posx = pos.x
-        else:
-            posx = (self.map_size.y - MAP_MARGIN * 2) * random.random() + MAP_MARGIN
         # If Y is out of range, randomize it.
-        if MAP_MARGIN <= pos.y <= self.map_size.y-MAP_MARGIN:
+        if pos.y < MAP_MARGIN:
+            posy = random.uniform(MAP_MARGIN, MAP_TILE_SIZE)
+        elif pos.y > self.map_size.y-MAP_MARGIN:
+            posy = random.uniform(self.map_size.y-MAP_TILE_SIZE, self.map_size.y-MAP_MARGIN)
+        else:    
             posy = pos.y
-        else:
-            posy = (self.map_size.y - MAP_MARGIN * 2) * random.random() + MAP_MARGIN
         # Return
         return pygame.Vector2(posx, posy)
 

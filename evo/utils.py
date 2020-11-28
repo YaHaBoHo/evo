@@ -68,7 +68,6 @@ class Int2D():
     def xy(self):
         return (int(self.x), int(self.y))
 
-
     @classmethod
     def _unsupported(cls, op, other):
         raise TypeError("Unsupported operation: {} {} {}".format(cls, op, type(other)))
@@ -155,6 +154,10 @@ def load_map_images():
         'edge': load_image_files("bg_edge_*.bmp", alpha=False),
         'corner': load_image_files("bg_corner_*.bmp", alpha=False)
     }
+
+
+def load_pond_images():
+    return load_image_files("bg_pond_*.bmp")
 
 
 def load_creature_images(scale_to):

@@ -18,16 +18,10 @@ class Node(pygame.sprite.Sprite):
         super().__init__()
         # Engine
         self.engine = engine
-        # Image
-        self.image = None
-        self.rect = None
-        # Characteristics
-        self.name = "{}-{}".format(self.__class__.__name__, next(Node.id_counter))
         # Variables
         self.pos = self.engine.random_map_position() if pos is None else self.validate_pos(pos)
-        # Initialize
-        self.load_image()
-        self.update_rect()
+        # Characteristics
+        self.name = "{}-{}".format(self.__class__.__name__, next(Node.id_counter))
 
     def __repr__(self):
         return "{}({},{})".format(
@@ -42,19 +36,6 @@ class Node(pygame.sprite.Sprite):
     def vector_to(self, other):
         return other.pos - self.pos
 
-    def get_image(self):
-        image = pygame.Surface((1, 1))
-        image.fill((0, 0, 1))
-        return image
-
-    def load_image(self):
-        self.image = self.get_image()
-        self.rect = self.image.get_rect()
-
-    def update_rect(self):
-        self.rect.centerx = self.pos.x
-        self.rect.centery = self.pos.y
-
  
 class Exploration(Node):
     pass
@@ -66,7 +47,33 @@ class Escape(Node):
         return self.engine.bounce_map_position(pos)
 
 
-class LifeForm(Node):
+class PhysicalNode(Node):
+    
+    def __init__(self, engine, pos=None):
+        # Parent
+        super().__init__(engine=engine, pos=pos)
+        # Image
+        self.image = None
+        self.rect = None
+        # Initialize
+        self.load_image()
+        self.update_rect()
+
+    def get_image(self):
+        image = pygame.Surface((10, 10))
+        image.fill((0,0,255))
+        return image
+
+    def load_image(self):
+        self.image = self.get_image()
+        self.rect = self.image.get_rect()
+
+    def update_rect(self):
+        self.rect.centerx = self.pos.x
+        self.rect.centery = self.pos.y
+
+
+class LifeForm(PhysicalNode):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
@@ -157,10 +164,11 @@ class Creature(LifeForm):
 
     def get_image(self):
         # Color
-        if self.digestion.value >= 5.5:
+        # TODO : Should be dynamic
+        if self.digestion.value >= 6:
             # Carnivore
             color = 2
-        elif self.digestion.value <= 4.5:
+        elif self.digestion.value <= 4:
             # Herbivore
             color = 0
         else:
@@ -170,10 +178,8 @@ class Creature(LifeForm):
         for images_size, images in self.engine.images_creatures:
             if self.size.value >= images_size:
                 return images[color]
-        # Fallback on custom surface
-        fallback = pygame.Surface((10, 10))
-        fallback.fill((255,255,0))
-        return fallback
+        # If no match, fallback on parent sprite
+        return super().get_image()
 
     def reproduce(self):
         self.energy -= self.reproduction_cost
@@ -241,7 +247,7 @@ class Creature(LifeForm):
         # Did we spot a predator?
         if predator:
             try:
-                target_pos = self.pos-predator_vector.normalize()*self.perception.distance
+                target_pos = self.pos-predator_vector.normalize()*self.perception.distance*0.5
             except ValueError:
                 # Cannot determine feeing direction, can happen if vector is (0,0)
                 # Just pass pos=None to make it random....
