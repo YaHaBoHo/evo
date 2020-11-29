@@ -71,6 +71,7 @@ class Digestion(Gene):
 
     def _specialization(self):
         scaled_value = utils.scale(self.value, self.VMIN, self.VMAX, -2, 2)
+        # Note: Below is DivByZero-safe
         if scaled_value >= 0:
             return scaled_value+1, 1/(scaled_value+1)
         elif scaled_value < 0:

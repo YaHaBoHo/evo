@@ -11,7 +11,7 @@ from evo.chart import Chart
 SCREEN_DEFAULT = (1024, 768)
 SCREEN_BACKGROUND = (27, 104, 143)
 ENGINE_SPEED = (1, 200)
-WORLD_SCALE = (0.25, 1)
+WORLD_SCALE = (0.5, 1)
 MAP_DEFAULT = (6, 4)
 MAP_TILE_SIZE = 256
 MAP_MARGIN = 20
@@ -34,6 +34,9 @@ class Engine():
             screen_size = SCREEN_DEFAULT if screen_resolution is None else screen_resolution
             self.screen_size = utils.Int2D(*screen_size)      
             self.screen = pygame.display.set_mode(self.screen_size.xy)
+        # self.screen_offset = pygame.math.Vector2((self.screen_size - self.world_size).xy) / 2
+        self.screen_offset  = pygame.math.Vector2(0)
+        self.screen_drag = False
         # Images
         self.images_map = utils.load_map_images()
         self.images_ponds = utils.load_pond_images()
@@ -50,11 +53,9 @@ class Engine():
         # World
         self.world_tiles = self.map_tiles + 2
         self.world_size = self.world_tiles * 256
-        self.world_pos = pygame.math.Vector2(self.screen_size.xy) / 2
-        self.world_drag = None
-        self.world_scale = 1
         self.world_background = self.load_world()
         self.world = pygame.Surface(self.world_size.xy)
+        self.world_scale = 0.75
         # Grid
         self.grid_cells = utils.Int2D(
             x=utils.ceildiv(self.map_size.x,  GRID_CELL_SIZE),
@@ -63,13 +64,13 @@ class Engine():
         self.grid = None
         self.clear_grid()
         # Chart
-        ## Config
+        ## Chart config
         chart_size = (min(self.screen_size.x/2, 640), min(self.screen_size.y/2, 480))
         self.chart = Chart(size=chart_size, history=250)  
         self.chart_pos = self.screen_size - self.chart.size
         self.chart_active = next(self.chart.active)
         self.chart_interval = 150  # TODO : Configurable
-        ## Metrics
+        ## Chart metrics
         self.chart.add_metric("cps", 0)
         self.chart.add_metric("creatures", 0)
         self.chart.add_metric("fruits", 0)
@@ -84,7 +85,6 @@ class Engine():
         # Internals
         self.clock = pygame.time.Clock()
         self.selected = None
-        self.selected_idx = -1
         self.speed = 30
         self.time = 0   
         self.running = False
@@ -161,33 +161,44 @@ class Engine():
             # Center / main tile      
             return random.choice(self.images_map['center'])
 
-    def select_next(self, clear=False):
-        # TODO : Review logic
-        if self.creatures and not clear:
-            self.selected_idx = (self.selected_idx + 1) % len(self.creatures)
-            self.selected = self.creatures.sprites()[self.selected_idx]
-            return
-        # If clear requested or group empty, clear selection
-        self.clear_selected()
-
     def clear_selected(self):
         self.selected = None
-        self.selected_idx = -1
 
-    def handle_mouse(self, event):
-        # Drag map
+    def screen_to_map(self, screen_point: pygame.math.Vector2) -> pygame.math.Vector2:
+        return pygame.math.Vector2(
+            screen_point/self.world_scale \
+            - self.screen_offset \
+            - pygame.math.Vector2(MAP_TILE_SIZE)
+        )
+
+    def handle_mouse(self, event):        
         if event.type == pygame.MOUSEBUTTONDOWN:
-            self.world_drag = pygame.Vector2(event.pos) - self.world_pos
+            # Right button (1) : Drag map
+            if event.button == 3:
+                self.screen_drag = True
+                pygame.mouse.get_rel()
+            # Left button (3) : Select creature
+            if event.button == 1:
+                click_pos = pygame.math.Vector2(pygame.mouse.get_pos())
+                selection_pos = self.screen_to_map(click_pos) 
+                selection_rect = pygame.Rect(selection_pos - (8, 8), (16, 16))
+                # pygame.draw.rect(self.map, (255,0,0), selection_rect)
+                for c in self.creatures:
+                    if c.rect.colliderect(selection_rect):
+                        self.selected = c
         elif event.type == pygame.MOUSEBUTTONUP:
-            self.world_drag = None
+            if event.button == 3:
+                self.screen_drag = False
         elif event.type == pygame.MOUSEMOTION:
-            if isinstance(self.world_drag, pygame.math.Vector2):
-                self.world_pos = pygame.math.Vector2(event.pos) - self.world_drag
+            if self.screen_drag:
+                self.screen_offset += pygame.mouse.get_rel()
         # Zoom
         elif event.type == pygame.MOUSEWHEEL:
+            # _delta = self.world_size * (1-self.world_scale) * 0.5
             self.world_scale = utils.clamp(self.world_scale + 0.05 * event.y, *WORLD_SCALE)
 
     def handle_keyboard(self, event):
+        # http://thepythongamebook.com/en:glossary:p:pygame:keycodes
         if event.type == pygame.KEYDOWN:
             # Simulation speed
             ## Faster
@@ -203,9 +214,6 @@ class Engine():
             ## Reset
             if event.key == pygame.K_SPACE:
                 self.speed = 30
-            # Creature selection
-            if event.key == pygame.K_TAB:
-                self.select_next()
             # Chart selection
             if event.key in (pygame.K_LSHIFT, pygame.K_RSHIFT):
                 self.chart_active = next(self.chart.active)
@@ -218,11 +226,10 @@ class Engine():
         self.world.blit(self.map, (MAP_TILE_SIZE, MAP_TILE_SIZE))
         # Scale world?
         if self.world_scale < 1:
-            _world = pygame.transform.smoothscale(self.world, (self.map_size * self.world_scale).xy)
+            _world = pygame.transform.smoothscale(self.world, (self.world_size * self.world_scale).xy)
+            self.screen.blit(_world, self.screen_offset * self.world_scale)
         else:
-            _world = self.world
-        # Blit world on screen
-        self.screen.blit(_world, self.world_pos - _world.get_rect().center)
+            self.screen.blit(self.world, self.screen_offset)
 
     def draw_ui(self):
         # TODO : Dynamic placement...
@@ -243,7 +250,7 @@ class Engine():
             self.draw_text("Size: {}".format(round(sc.size.value, 2)), (20, self.screen_size.y-80))
             self.draw_text("Speed: {}".format(round(sc.speed.value, 2)), (20, self.screen_size.y-60))
             self.draw_text("Perception: {}".format(round(sc.perception.value, 2)), (20, self.screen_size.y-40))
-            self.draw_text("Target: {}".format(sc.target), (20, self.screen_size.y-20))
+            self.draw_text("Action: {}".format(sc.describe_action()), (20, self.screen_size.y-20))
         # Chart
         if self.chart_active:
             self.screen.blit(self.chart_active, self.chart_pos.xy)
@@ -339,7 +346,7 @@ class Engine():
                         if random.random() <= fruits_chance:
                             Fruit.spawn(self)
 
-            # Check and dispatch events
+            # Handle events
             for event in pygame.event.get():
                 # Mouse
                 self.handle_mouse(event)

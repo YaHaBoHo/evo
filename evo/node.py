@@ -3,7 +3,8 @@ import itertools
 import collections
 import pygame
 from evo import utils
-from evo.dna import Size, Speed, Perception, Digestion
+from evo import task
+from evo import dna
 
 
 # Initialize
@@ -25,11 +26,7 @@ class Node(pygame.sprite.Sprite):
         self.name = "{}-{}".format(self.__class__.__name__, next(Node.id_counter))
 
     def __repr__(self):
-        return "{}({},{})".format(
-            self.name,
-            round(self.pos.y),
-            round(self.pos.x)
-        )
+        return self.name
 
     def validate_pos(self, pos):
         return self.engine.clamp_map_position(pos)
@@ -138,11 +135,12 @@ class Creature(LifeForm):
         self.parent = parent
         # Specs
         if self.parent is None:
-            self.size = Size()
-            self.speed = Speed()
-            self.perception = Perception()
-            self.digestion = Digestion()
+            self.size = dna.Size()
+            self.speed = dna.Speed()
+            self.perception = dna.Perception()
+            self.digestion = dna.Digestion()
             self.generation = 1
+            self.task = None
         else:
             pos = self.parent.pos
             self.size = self.parent.size.mutate()
@@ -150,6 +148,7 @@ class Creature(LifeForm):
             self.perception = self.parent.perception.mutate()
             self.digestion = self.parent.digestion.mutate()
             self.generation = self.parent.generation + 1
+            self.task = task.Wean(timer=20)
         # LifeForm
         super().__init__(engine=engine, pos=pos)
         self.consume_value = self.size.cost * 1800
@@ -161,12 +160,27 @@ class Creature(LifeForm):
         self.energy = self.consume_value  # Start_energy = Consumption value
         self.target = None
         self.waypoints = collections.deque(maxlen=10)
-        self.action = None
-        self.pinner = None
+        self.incapacitated = False
 
     @property
     def reproduction_cost(self):
-        return self.consume_value * 0.5
+        return self.consume_value * 0.6  # TODO: COnfigureable
+
+    def describe_action(self):
+        # Active task?
+        if self.task:
+            if isinstance(self.task, task.Consume):
+                return "{} {}".format(self.task.VERB.capitalize(), self.target)
+            return self.task.VERB.capitalize()
+        # Target?
+        if isinstance(self.target, LifeForm):
+            return "Going after {}".format(self.target)
+        if isinstance(self.target, Escape):
+            return "Running away"
+        if isinstance:
+            return "Looking for food"  # TODO : Or water.
+        # Fallback ro idle
+        return "Idle"
 
     def get_image(self):
         # Color
@@ -279,7 +293,7 @@ class Creature(LifeForm):
 
     def pin_target(self):
         if isinstance(self.target, Creature):
-            self.target.pinner = self
+            self.target.incapacitated = True
 
     def consume_target(self):
         # Is target still alive?
@@ -327,10 +341,10 @@ class Creature(LifeForm):
                 else:
                     consume_speed = self.digestion.herbivore
                 # Try consuming target
-                self.action = utils.Task(
+                self.task = task.Consume(
                     timer=int(self.target.consume_time/consume_speed), 
                     action=self.consume_target, 
-                    validate=self.check_target
+                    update=lambda *_: self.check_target()
                 )
             else:
                 # Otherwise, just unset it.
@@ -353,6 +367,8 @@ class Creature(LifeForm):
                     pygame.draw.line(self.engine.map, (160,192,160), wp0, wp1, 2)
                     wp0 = wp1
                 pygame.draw.line(self.engine.map, (160,192,160), wp0, self.pos, 2)
+            # [Debug] draw rect
+            # pygame.draw.rect(self.engine.map, (0,0,0), self.rect, 1)
             # Draw a circle for perception
             pygame.draw.circle(self.engine.map, (96,96,96), self.pos, self.perception.distance, 1)
             # Draw a line for target (if any)
@@ -367,16 +383,13 @@ class Creature(LifeForm):
         if self.energy <= 0:
             self.die()
         # Do we have an ongoing action?
-        if self.action:
-            self.action.tick()
-        elif self.pinner:
-            # If pinner is dead, drop it.
-            if not self.pinner.alive():
-                self.pinner = None
-        else:
+        if self.task:
+            self.task.tick()
+        # Are we incapacitated? 
+        elif not self.incapacitated:
             # Check if we can reproduce.
             if self.energy >= self.consume_value + self.reproduction_cost:
-                self.action = utils.Task(timer=30, action=self.reproduce)
+                self.task = task.Gestate(timer=30, action=self.reproduce)
             # If our prey is dead, drop it.
             self.refresh_target() 
             # Lastly, move - if possible.
