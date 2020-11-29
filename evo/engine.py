@@ -34,7 +34,6 @@ class Engine():
             screen_size = SCREEN_DEFAULT if screen_resolution is None else screen_resolution
             self.screen_size = utils.Int2D(*screen_size)      
             self.screen = pygame.display.set_mode(self.screen_size.xy)
-        # self.screen_offset = pygame.math.Vector2((self.screen_size - self.world_size).xy) / 2
         self.screen_offset  = pygame.math.Vector2(0)
         self.screen_drag = False
         # Images
@@ -55,7 +54,9 @@ class Engine():
         self.world_size = self.world_tiles * 256
         self.world_background = self.load_world()
         self.world = pygame.Surface(self.world_size.xy)
-        self.world_scale = 0.75
+        self.world_scale = 1
+        ## Update screen offset to match world center.
+        self.screen_offset -= pygame.math.Vector2(self.screen_size.xy) / 2
         # Grid
         self.grid_cells = utils.Int2D(
             x=utils.ceildiv(self.map_size.x,  GRID_CELL_SIZE),
@@ -194,8 +195,9 @@ class Engine():
                 self.screen_offset += pygame.mouse.get_rel()
         # Zoom
         elif event.type == pygame.MOUSEWHEEL:
-            # _delta = self.world_size * (1-self.world_scale) * 0.5
+            focus = self.screen_to_map((self.screen_size/2).vector2)
             self.world_scale = utils.clamp(self.world_scale + 0.05 * event.y, *WORLD_SCALE)
+            self.screen_offset += self.screen_to_map((self.screen_size/2).vector2) - focus
 
     def handle_keyboard(self, event):
         # http://thepythongamebook.com/en:glossary:p:pygame:keycodes
@@ -226,8 +228,8 @@ class Engine():
         self.world.blit(self.map, (MAP_TILE_SIZE, MAP_TILE_SIZE))
         # Scale world?
         if self.world_scale < 1:
-            _world = pygame.transform.smoothscale(self.world, (self.world_size * self.world_scale).xy)
-            self.screen.blit(_world, self.screen_offset * self.world_scale)
+            scaled_world = pygame.transform.smoothscale(self.world, (self.world_size * self.world_scale).xy)
+            self.screen.blit(scaled_world, self.screen_offset * self.world_scale)
         else:
             self.screen.blit(self.world, self.screen_offset)
 

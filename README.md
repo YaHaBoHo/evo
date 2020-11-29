@@ -12,4 +12,6 @@ Start with `run.py`
   * `Shift` cycles trough charts
   * `Escape` quits
 - Mouse
-  * `MouseLeft` let you drag the map around
+  * `MouseRight` lets you pan over the map
+  * `MouseLeft` lets you select a creature
+  * `MouswWheel` lets you zoom in and out
