@@ -16,94 +16,47 @@ ALPHA_COLOR = (255,0,255)
 
 # ----- Classes ----- #
 
-class Task():
-
-    # timer [int] : Time before executing action.
-    # action [function] : Callback, executed when timer expires.
-    # validate [function] : Callback, executed every tick. If returns false, abort action.
-    # update [function] : Callback, executed every tick, with timer value as an arg.
-
-    def __init__(self, timer, action=None, validate=None, update=None):
-        # Config
-        self.timer = timer
-        self._action = action
-        self._validate = validate
-        self._update = update
-        # Internals
-        self.aborted = False
-
-    def __bool__(self):
-        return self.running 
-
-    @property
-    def running(self):
-        return (self.timer > 0) and (not self.aborted)
-
-    def action(self):
-        if self._action and not self.aborted:
-            self._action()
-
-    def validate(self):
-        # If function exists, run it.
-        if self._validate:
-            return self._validate()
-        # Otherwise just return True.
-        return True
-
-    def update(self):
-        if self._update and not self.aborted:
-            self._update(self.timer)
-
-    def tick(self):
-        # Only take action if not aborted
-        if not self.aborted:
-            # Validate ...
-            if not self.validate():
-                self.aborted = True
-            # ... and tick/execute.
-            else:
-                # Uodate
-                self.timer -= 1
-                self.update()
-                # Execute action if done
-                if self.timer <= 0:
-                    self.action()
-
-
 class Int2D():
 
-    def __init__(self, x, y):
+    def __init__(self, x, y=None):
         self._x = x
-        self._y = y
+        if y is None:
+            self._y = x
+        else:
+            self._y = y
 
     def __repr__(self):
         return "<Int2D({},{})>".format(self.x, self.y)
 
     def __add__(self, other):
         if isinstance(other, (int, float)):
-            return Int2D(self.x + other, self.y + other)
+            return Int2D(self._x + other, self._y + other)
         if isinstance(other, Int2D):
-            return Int2D(self.x + other.x, self.y + other.y)
+            return Int2D(self._x + other._x, self._y + other._y)
         # Unsupported... 
         Int2D._unsupported("+", other)
 
     def __sub__(self, other):
         if isinstance(other, (int, float)):
-            return Int2D(self.x - other, self.y - other)
+            return Int2D(self._x - other, self._y - other)
         if isinstance(other, Int2D):
-            return Int2D(self.x - other.x, self.y - other.y)
+            return Int2D(self._x - other._x, self._y - other._y)
         # Unsupported... 
         Int2D._unsupported("-", other)
 
     def __mul__(self, other):
         if isinstance(other, (int, float)):
-            return Int2D(self.x * other, self.y * other)
+            return Int2D(self._x * other, self._y * other)
+        if isinstance(other, Int2D):
+            return Int2D(self._x * other._x, self._y * other._y)
         # Unsupported... 
         Int2D._unsupported("*", other)
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
-            return Int2D(self.x / other, self.y / other)
+            return Int2D(self._x / other, self._y / other)
+        if isinstance(other, Int2D):
+            return Int2D(self._x / other._x, self._y / other._y)
         # Unsupported... 
         Int2D._unsupported("/ or //", other)
 
@@ -120,11 +73,17 @@ class Int2D():
 
     @property
     def xy(self):
-        return (int(self.x), int(self.y))
+        return (self.x, self.y)
+
+    @property
+    def vector2(self):
+        return pygame.Vector2(self.x, self.y)
 
     @classmethod
     def _unsupported(cls, op, other):
         raise TypeError("Unsupported operation: {} {} {}".format(cls, op, type(other)))
+
+
 
 
 # ----- Helpers ----- #
