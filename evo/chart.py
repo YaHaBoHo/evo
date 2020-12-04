@@ -1,4 +1,3 @@
-import random
 import collections
 import pygame
 from evo import utils
@@ -8,7 +7,6 @@ CHART_BACKGROUND = (192, 192, 192)
 CHART_ALPHA = 192
 CHART_LINE_COLOR = (0, 0, 255)
 CHART_AREA_COLOR = (64, 128, 255)
-
 
 
 # Initialize
@@ -24,7 +22,7 @@ class Chart():
         # Internals
         self.metrics = list()
         self.data = dict()
-        self.plots = dict()       
+        self.plots = dict()
         self.active = self._cycle()
         # Initialize
         self.redraw()
@@ -54,27 +52,27 @@ class Chart():
                 continue
             # Draw chart
             # TODO : Optimize...
-            ## Data bounds
-            slotx = self.size.x/(len(data)-1)
+            # - Data bounds
+            slot_x = self.size.x/(len(data)-1)
             plot_min = min(min(dp) for dp in data) if vmin is None else vmin
             plot_max = max(max(dp) for dp in data) if vmax is None else vmax
-            ## Charts
+            # - Charts
             mid0 = utils.Int2D(0, self.size.y - utils.scale(data[0][0], plot_min, plot_max, 0, self.size.y))
             for i in range(1, len(data)):
-                posx = i*slotx
+                pos_x = i*slot_x
                 # Area-chart
                 try:
                     low1 = max(self.size.y - utils.scale(data[i][1], plot_min, plot_max, 0, self.size.y), mid0.y)
                     high1 = min(self.size.y - utils.scale(data[i][2], plot_min, plot_max, 0, self.size.y), mid0.y)
                     pygame.draw.rect(
-                        self.plots[metric_name], 
-                        CHART_AREA_COLOR, 
-                        pygame.Rect((posx-slotx, high1), (slotx+1, low1-high1+1))
+                        self.plots[metric_name],
+                        CHART_AREA_COLOR,
+                        pygame.Rect((pos_x-slot_x, high1), (slot_x+1, low1-high1+1))
                     )
                 except IndexError:
                     pass
                 # Line-chart
-                mid1 = utils.Int2D(posx, self.size.y - utils.scale(data[i][0], plot_min, plot_max, 0, self.size.y))
+                mid1 = utils.Int2D(pos_x, self.size.y - utils.scale(data[i][0], plot_min, plot_max, 0, self.size.y))
                 pygame.draw.line(self.plots[metric_name], CHART_LINE_COLOR, mid0.xy, mid1.xy, 1)
                 # Reset to next
                 mid0 = mid1
@@ -92,10 +90,10 @@ class Chart():
             self.plots[metric_name].blit(
                 source=utils.gui_text(round(plot_max, 2), bg=CHART_BACKGROUND),
                 dest=(10, 10)
-            ) 
+            )
             # Y-latest
             _latest = utils.gui_text(
-                text=round(data[-1][0], 2), 
+                text=round(data[-1][0], 2),
                 fg=CHART_LINE_COLOR,
                 bg=CHART_BACKGROUND
             )
