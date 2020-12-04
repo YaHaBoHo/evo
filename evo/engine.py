@@ -11,7 +11,7 @@ from evo.chart import Chart
 SCREEN_DEFAULT = (1024, 768)
 SCREEN_BACKGROUND = (27, 104, 143)
 ENGINE_SPEED = (1, 200)
-WORLD_SCALE = (0.5, 1)
+WORLD_SCALE = (0.25, 1)
 MAP_DEFAULT = (6, 4)
 MAP_TILE_SIZE = 256
 MAP_MARGIN = 20
@@ -183,7 +183,6 @@ class Engine():
                 click_pos = pygame.math.Vector2(pygame.mouse.get_pos())
                 selection_pos = self.screen_to_map(click_pos) 
                 selection_rect = pygame.Rect(selection_pos - (8, 8), (16, 16))
-                # pygame.draw.rect(self.map, (255,0,0), selection_rect)
                 for c in self.creatures:
                     if c.rect.colliderect(selection_rect):
                         self.selected = c
@@ -192,7 +191,7 @@ class Engine():
                 self.screen_drag = False
         elif event.type == pygame.MOUSEMOTION:
             if self.screen_drag:
-                self.screen_offset += pygame.mouse.get_rel()
+                self.screen_offset += pygame.math.Vector2(pygame.mouse.get_rel()) / self.world_scale
         # Zoom
         elif event.type == pygame.MOUSEWHEEL:
             focus = self.screen_to_map((self.screen_size/2).vector2)
@@ -201,7 +200,7 @@ class Engine():
 
     def handle_keyboard(self, event):
         # http://thepythongamebook.com/en:glossary:p:pygame:keycodes
-        if event.type == pygame.KEYDOWN:
+        if event.type == pygame.KEYDOWN: 
             # Simulation speed
             ## Faster
             if event.key == pygame.K_UP:

@@ -4,8 +4,7 @@ class Task():
 
     # timer [int] : Time before executing action.
     # action [function] : Callback, executed when timer expires.
-    # update [function] : Callback, executed every tick, with timer value as an arg.
-    #                     If it retruns [False] task will be aborted.
+    # update [function] : Callback, executed every tick, if it retruns [False] task will be aborted.
 
     VERB = "is busy"
 
@@ -30,7 +29,7 @@ class Task():
 
     def update(self):
         if self._update and not self.aborted:
-            return self._update(self.timer)
+            return self._update()
         # Otherwise just return True.
         return True
 

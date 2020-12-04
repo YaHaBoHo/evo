@@ -13,7 +13,7 @@ pygame.init()
 
 class Node(pygame.sprite.Sprite):
 
-    id_counter = itertools.count()
+    id_tracker = itertools.count()
 
     def __init__(self, engine, pos:pygame.math.Vector2=None):
         # Parent
@@ -23,7 +23,8 @@ class Node(pygame.sprite.Sprite):
         # Variables
         self.pos = self.engine.random_map_position() if pos is None else self.validate_pos(pos)
         # Characteristics
-        self.name = "{}-{}".format(self.__class__.__name__, next(Node.id_counter))
+        self.id = next(Node.id_tracker)
+        self.name = "{}-{}".format(self.__class__.__name__, self.id)
 
     def __repr__(self):
         return self.name
@@ -75,10 +76,19 @@ class LifeForm(PhysicalNode):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.consume_value = 0
-        self.consume_time = 0
+        self.nutrition = 0
         self.add(self.engine.lifeforms)
 
+    def take_bite(self, amount):
+        # Clamp bite amount 
+        amount = min(amount, self.nutrition+1)
+        self.nutrition -= amount
+        # Die if nutrition <= 0
+        if self.nutrition <= 0:
+            self.die()
+        # Return bite amount
+        return amount
+    
     def die(self):
         self.kill()
 
@@ -87,7 +97,6 @@ class Fruit(LifeForm):
     
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.consume_time = 15
         self.add(self.engine.fruits)
 
     @classmethod
@@ -100,7 +109,7 @@ class Cherry(Fruit):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.consume_value = 1000
+        self.nutrition = 1000
 
     def get_image(self):
         return self.engine.images_fruits['cherry']
@@ -110,7 +119,7 @@ class Banana(Fruit):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.consume_value = 2000
+        self.nutrition = 2000
 
     def get_image(self):
         return self.engine.images_fruits['banana']
@@ -120,7 +129,7 @@ class Pineapple(Fruit):
 
     def __init__(self, engine, pos=None):
         super().__init__(engine=engine, pos=pos)
-        self.consume_value = 3000
+        self.nutrition = 3000
 
     def get_image(self):
         return self.engine.images_fruits['pineapple']
@@ -151,20 +160,29 @@ class Creature(LifeForm):
             self.task = task.Wean(timer=20)
         # LifeForm
         super().__init__(engine=engine, pos=pos)
-        self.consume_value = self.size.cost * 1800
-        self.consume_time = 30 + self.size.value * 5
+        self.nutrition = self.size.cost * 1800
         # PyGame
         self.add(self.engine.creatures)
         # Variables
         self.age = 0
-        self.energy = self.consume_value  # Start_energy = Consumption value
+        self.energy = self.nutrition  # Start_energy = Consumption value
         self.target = None
         self.waypoints = collections.deque(maxlen=10)
         self.incapacitated = False
 
     @property
     def reproduction_cost(self):
-        return self.consume_value * 0.6  # TODO: COnfigureable
+        return self.nutrition * 0.6  # TODO: COnfigureable
+    
+    def adjust_nutrition(self, other, amount=None):
+        # Set default if needed
+        if amount is None:
+            amount = other.nutrition
+        # Return adjusted value
+        if isinstance(other, Creature):
+            return self.digestion.carnivore * amount
+        else:
+            return self.digestion.herbivore * amount
 
     def describe_action(self):
         # Active task?
@@ -204,12 +222,6 @@ class Creature(LifeForm):
     def reproduce(self):
         self.energy -= self.reproduction_cost
         Creature(engine=self.engine, parent=self)
-
-    def get_consume_value(self, other):
-        if isinstance(other, Creature):
-            return self.digestion.carnivore * other.consume_value
-        else:
-            return self.digestion.herbivore * other.consume_value
 
     def is_related(self, other):
         return (self.parent == other) or (other.parent == self) or (self.parent == other.parent)
@@ -272,13 +284,13 @@ class Creature(LifeForm):
             elif not predator:
                 distance = vector.magnitude()
                 if distance <= self.perception.distance:
-                    score = self.get_consume_value(lf) / max(1, distance**2)
+                    score = self.adjust_nutrition(lf) / max(1, distance**2)
                     if score > prey_score:
                         prey, prey_score = lf, score
         # Did we spot a predator?
         if predator:
             try:
-                target_pos = self.pos-predator_vector.normalize()*self.perception.distance*0.5
+                target_pos = self.pos-predator_vector.normalize() * self.perception.distance * 0.5
             except ValueError:
                 # Cannot determine feeing direction, can happen if vector is (0,0)
                 # Just pass pos=None to make it random....
@@ -291,18 +303,24 @@ class Creature(LifeForm):
         elif not self.target:
             self.set_target(Exploration(self.engine))
 
-    def pin_target(self):
+    def incapacitate_target(self):
         if isinstance(self.target, Creature):
             self.target.incapacitated = True
 
-    def consume_target(self):
+    def bite_target(self):
         # Is target still alive?
-        if self.target.alive():
-            # Add energy
-            self.energy += self.get_consume_value(self.target)
-            # Kill target
-            self.target.die()
+        if self.target and self.target.alive():
+            # Take a bite
+            bite_amount = self.target.take_bite(self.adjust_nutrition(self.target, amount=50))
+            if bite_amount > 0:
+                self.energy += bite_amount
+                return True
+            return False
+  
+        else:
+            # Unset target
             self.set_target(None)
+            return False
 
     def set_target(self, target):
         self.waypoints.append(self.pos.xy)
@@ -334,17 +352,11 @@ class Creature(LifeForm):
             self.pos.update(self.target.pos)
             if isinstance(self.target, LifeForm):
                 # If target is a LifeForm, pin it
-                self.pin_target()
-                # Compute consumption time
-                if isinstance(self.target, Creature):
-                    consume_speed = self.digestion.carnivore
-                else:
-                    consume_speed = self.digestion.herbivore
+                self.incapacitate_target()
                 # Try consuming target
                 self.task = task.Consume(
-                    timer=int(self.target.consume_time/consume_speed), 
-                    action=self.consume_target, 
-                    update=lambda *_: self.check_target()
+                    timer=self.target.nutrition/self.adjust_nutrition(self.target),
+                    update=self.bite_target
                 )
             else:
                 # Otherwise, just unset it.
@@ -388,7 +400,7 @@ class Creature(LifeForm):
         # Are we incapacitated? 
         elif not self.incapacitated:
             # Check if we can reproduce.
-            if self.energy >= self.consume_value + self.reproduction_cost:
+            if self.energy >= self.nutrition + self.reproduction_cost:
                 self.task = task.Gestate(timer=30, action=self.reproduce)
             # If our prey is dead, drop it.
             self.refresh_target() 
