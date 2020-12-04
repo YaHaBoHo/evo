@@ -10,8 +10,8 @@ pygame.init()
 HOMEDIR = pathlib.Path(__file__).parent.absolute()
 IMAGEDIR = HOMEDIR / "img"
 TEXT_FONT = pygame.font.SysFont(None, 16)
-TEXT_COLOR = (0,0,0)
-ALPHA_COLOR = (255,0,255)
+TEXT_COLOR = (0, 0, 0)
+ALPHA_COLOR = (255, 0, 255)
 
 
 # ----- Classes ----- #
@@ -33,7 +33,7 @@ class Int2D():
             return Int2D(self._x + other, self._y + other)
         if isinstance(other, Int2D):
             return Int2D(self._x + other._x, self._y + other._y)
-        # Unsupported... 
+        # Unsupported...
         Int2D._unsupported("+", other)
 
     def __sub__(self, other):
@@ -41,7 +41,7 @@ class Int2D():
             return Int2D(self._x - other, self._y - other)
         if isinstance(other, Int2D):
             return Int2D(self._x - other._x, self._y - other._y)
-        # Unsupported... 
+        # Unsupported...
         Int2D._unsupported("-", other)
 
     def __mul__(self, other):
@@ -49,7 +49,7 @@ class Int2D():
             return Int2D(self._x * other, self._y * other)
         if isinstance(other, Int2D):
             return Int2D(self._x * other._x, self._y * other._y)
-        # Unsupported... 
+        # Unsupported...
         Int2D._unsupported("*", other)
 
     def __truediv__(self, other):
@@ -57,7 +57,7 @@ class Int2D():
             return Int2D(self._x / other, self._y / other)
         if isinstance(other, Int2D):
             return Int2D(self._x / other._x, self._y / other._y)
-        # Unsupported... 
+        # Unsupported...
         Int2D._unsupported("/ or //", other)
 
     def __floordiv__(self, other):
@@ -66,7 +66,7 @@ class Int2D():
     @property
     def x(self):
         return int(self._x)
-    
+
     @property
     def y(self):
         return int(self._y)
@@ -84,8 +84,6 @@ class Int2D():
         raise TypeError("Unsupported operation: {} {} {}".format(cls, op, type(other)))
 
 
-
-
 # ----- Helpers ----- #
 
 def avg(values):
@@ -93,10 +91,12 @@ def avg(values):
         return sum(values)/len(values)
     return 0
 
+
 def stat_amima(values):
     if len(values) > 0:
         return (avg(values), min(values), max(values))
     return (0,)*3
+
 
 def stat_quantiles(values, mid=0.5, low=0.1, high=0.9):
     value_count = len(values)
@@ -142,24 +142,27 @@ def load_image_strip(file_name, alpha=True):
     img_list = list()
     img_strip = load_image_file(file_name, alpha=False)
     img_size = img_strip.get_height()
-    for posx in range(0, img_strip.get_width(), img_size):
+    for pos_x in range(0, img_strip.get_width(), img_size):
         img = pygame.Surface((img_size, img_size)).convert()
         img.set_colorkey(ALPHA_COLOR)
-        img.blit(img_strip, (0, 0), (posx, 0, img_size, img_size))
+        img.blit(img_strip, (0, 0), (pos_x, 0, img_size, img_size))
         img_list.append(img.convert())
     return img_size, img_list
-   
+
 
 def load_image_files(file_pattern, alpha=True):
-    return [ load_image_file(p.name, alpha) for p in IMAGEDIR.glob(file_pattern) if p.is_file() ]
+    return [
+        load_image_file(p.name, alpha)
+        for p in IMAGEDIR.glob(file_pattern) if p.is_file()]
 
 
 def load_image_strips(file_pattern, alpha=True):
     return sorted(
         [load_image_strip(f.name, alpha=True) for f in IMAGEDIR.glob(file_pattern) if f.is_file()],
-        key=lambda x: x[0], 
+        key=lambda x: x[0],
         reverse=True
     )
+
 
 def load_map_images():
     return {
@@ -180,7 +183,7 @@ def load_creature_images(scale_to):
     scale_from = (images_creatures[-1][0], images_creatures[0][0])
     return [
         (scale(img_size, *scale_from, *scale_to), img_list)
-    for img_size, img_list in images_creatures]
+        for img_size, img_list in images_creatures]
 
 
 def load_fruit_images():

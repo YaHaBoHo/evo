@@ -3,6 +3,7 @@ from evo import utils
 
 # TODO : Type hints
 
+
 class Gene():
 
     VMIN = 0.5

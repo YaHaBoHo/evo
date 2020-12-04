@@ -17,7 +17,7 @@ class Task():
         self.aborted = False
 
     def __bool__(self):
-        return self.running 
+        return self.running
 
     @property
     def running(self):
@@ -62,4 +62,4 @@ class Drink(Task):
 
 
 class Gestate(Task):
-    VERB = "gestating" 
+    VERB = "gestating"
